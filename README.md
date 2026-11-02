@@ -17,6 +17,7 @@ Nur USB – kein WLAN, keine Hintergrund-App. Das Board meldet sich am PC als ga
   - **Webhook / URL aufrufen** – z. B. Home-Assistant-Automationen
   - **Makro** – mehrere Schritte (`key:`, `text:`, `media:`, `open:`, `delay:`, `page:`)
   - **Seite wechseln**
+  - **Umschalter** – mehrere Zustände mit eigenem Icon, Text und Farbe (z. B. SoundSwitch Lautsprecher ↔ Kopfhörer, Mikro an/aus); langes Drücken schaltet nur die Anzeige weiter
 - **Über 450 moderne Icons** aus [Tabler Icons](https://tabler.io/icons) (Linie und Gefüllt), inkl. Marken-Logos wie Discord, Spotify, Twitch, Steam, Teams – mit Suche (auch auf Deutsch) in der Web-App
 - **Tastaturlayout Deutsch (QWERTZ) oder US** – damit `Z`, `Y`, `@`, `\`, `ä` usw. richtig ankommen
 - **Web-App**: Beschriftung, Symbol, Farben, Aktion, Drag & Drop, Kopieren/Einfügen, „Am PC testen“, Export/Import, Demo-Modus ohne Gerät

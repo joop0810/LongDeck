@@ -84,6 +84,10 @@ input[type=color]{padding:2px;height:38px}
 .savebar .msg{flex:1;color:var(--muted);font-size:13px}
 .dirty{color:var(--warn)!important}
 .rec{border-color:var(--warn)!important;color:var(--warn)}
+.togrow{display:grid;grid-template-columns:26px 1fr 150px 44px 34px;gap:6px;align-items:center;margin-bottom:6px}
+.togrow input[type=radio]{width:18px;height:18px;accent-color:var(--accent)}
+.togrow .iconbtn{min-height:36px;padding:4px 8px}
+.togrow input[type=color]{height:36px}
 #toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:10px;display:none;z-index:20;font-weight:500;max-width:90vw}
 esp-web-install-button button[slot=activate]{background:var(--accent);color:#04121b;border:0;border-radius:10px;padding:12px 22px;font:600 15px system-ui,sans-serif;cursor:pointer}
 ol{margin:0;padding-left:20px}li{margin:5px 0}
@@ -149,6 +153,7 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
     <h2>Taste <span id="edIdx"></span></h2>
     <div class="grid2">
       <div>
+        <div id="edLook">
         <label>Beschriftung (Enter = neue Zeile)</label>
         <textarea id="edLabel" style="min-height:44px;font-family:inherit"></textarea>
         <div class="row">
@@ -156,6 +161,8 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
           <div><label>Hintergrund</label><input type="color" id="edBg"></div>
           <div><label>Schrift</label><input type="color" id="edFg"></div>
         </div>
+        </div>
+        <div id="edLookToggle" class="hint" style="display:none;margin-top:28px">Beim Umschalter legst du Beschriftung, Symbol und Farbe pro Zustand rechts fest.</div>
       </div>
       <div>
         <label>Aktion</label>
@@ -168,7 +175,18 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
           <option value="http">Webhook / URL aufrufen (z. B. Home Assistant)</option>
           <option value="macro">Makro (mehrere Schritte)</option>
           <option value="page">Seite wechseln</option>
+          <option value="toggle">Umschalter – Icon wechselt je Zustand (z. B. SoundSwitch)</option>
         </select>
+        <div id="f-toggle" class="fields">
+          <label>Vorlage</label>
+          <div class="row"><button class="btn" id="tplSound" type="button">🎧 SoundSwitch</button><button class="btn" id="tplMic" type="button">🎙 Mikrofon an/aus</button><button class="btn" id="tplLight" type="button">💡 Licht an/aus</button></div>
+          <label>Beim Drücken ausführen</label>
+          <select id="edTogAct"><option value="hotkey">Tastenkombination</option><option value="media">Media-Taste</option><option value="text">Text tippen</option><option value="open">Programm / Ordner / Webseite öffnen</option><option value="http">Webhook / URL aufrufen</option><option value="macro">Makro</option></select>
+          <label>Zustände (Reihenfolge = Reihenfolge beim Drücken)</label>
+          <div id="togStates"></div>
+          <button class="btn" id="togAdd" type="button" style="margin-top:6px">+ Zustand</button>
+          <div class="hint">Jeder Druck führt die Aktion aus und wechselt dann zum nächsten Zustand. Passt die Anzeige mal nicht zum PC (z. B. dort umgeschaltet), die Taste <b>lange drücken</b> – das schaltet nur die Anzeige weiter. Der markierte Zustand ist der aktuelle.</div>
+        </div>
         <div id="f-hotkey" class="fields">
           <label>Kombination</label>
           <div class="row"><input id="edHotkey" placeholder="z. B. CTRL+SHIFT+M"><button class="btn" id="recBtn">⏺ Aufnehmen</button></div>
@@ -515,7 +533,7 @@ function renderDeck(){
   let h=Math.floor((availH-(rows-1)*GAP)/rows);if(cfg.squareTiles!==false&&h>w)h=w;
   const x0=Math.floor((W-(cols*w+(cols-1)*GAP))/2),y0=PAD+Math.floor((availH-(rows*h+(rows-1)*GAP))/2);
   const pct=(v,t)=>(v/t*100)+'%';
-  cfg.pages[page].buttons.forEach((b,i)=>{
+  cfg.pages[page].buttons.forEach((b0,i)=>{const b=viewOf(b0);
     const k=document.createElement('div');const empty=b.type==='none'&&!b.label&&!b.icon;
     k.className='key'+(empty?' empty':'')+(i===sel?' sel':'');k.style.color=b.fg;k.draggable=true;
     if(glass&&!empty){const c=hexRgb(b.bg),blk=[0,0,0],wht=[255,255,255];
@@ -553,7 +571,10 @@ function renderDeck(){
     k.ondrop=e=>{e.preventDefault();if(dragFrom<0||dragFrom===i)return;const bs=cfg.pages[page].buttons;[bs[dragFrom],bs[i]]=[bs[i],bs[dragFrom]];if(sel===dragFrom)sel=i;else if(sel===i)sel=dragFrom;dragFrom=-1;setDirty();render()};
     d.appendChild(k)});
 }
-function showFields(t){document.querySelectorAll('.fields').forEach(f=>f.style.display=f.id==='f-'+t?'block':'none')}
+function showFields(t){const inner=t==='toggle'?$('edTogAct').value:null;document.querySelectorAll('.fields').forEach(f=>f.style.display=(f.id==='f-'+t||(inner&&f.id==='f-'+inner))?'block':'none');
+  $('edLook').style.display=t==='toggle'?'none':'block';$('edLookToggle').style.display=t==='toggle'?'block':'none'}
+function viewOf(b){if(b.type==='toggle'&&b.states&&b.states.length){const st=b.states[Math.min(b.state||0,b.states.length-1)];return Object.assign({},b,{label:st.label,icon:st.icon,bg:st.bg})}return b}
+function actType(b){return b.type==='toggle'?(b.action||'hotkey'):b.type}
 
 // Muss identisch zu buildWebhookCommand() in der Firmware sein
 function psQuote(s){return "'"+s.replace(/'/g,"''").replace(/"/g,'\\"').replace(/\r/g,'').replace(/\n/g,' ')+"'"}
@@ -561,14 +582,14 @@ function buildWebhookCmd(b){const m=(b.method||'POST').toUpperCase();let c=`powe
 function showLen(el,len){el.textContent=`${len} / ${RUN_MAX} Zeichen`+(len>RUN_MAX?' – zu lang für das Ausführen-Fenster! Body oder Token kürzen (Webhook ohne Token nutzen).':'');el.classList.toggle('bad',len>RUN_MAX)}
 function updateLens(){
   if(sel<0)return;const b=cfg.pages[page].buttons[sel];
-  if(b.type==='http')showLen($('httpLen'),utf8len(buildWebhookCmd(b)));
-  if(b.type==='open')showLen($('openLen'),utf8len(b.value||''));
+  const at=actType(b);if(at==='http')showLen($('httpLen'),utf8len(buildWebhookCmd(b)));
+  if(at==='open')showLen($('openLen'),utf8len(b.value||''));
 }
 function renderEditor(){
   if(sel<0){$('editor').style.display='none';return}
   const b=cfg.pages[page].buttons[sel];$('editor').style.display='block';$('edIdx').textContent=(sel+1)+' (Zeile '+(Math.floor(sel/cfg.cols)+1)+', Spalte '+(sel%cfg.cols+1)+')';
   $('edLabel').value=b.label;$('edIcon').value=iconName(b.icon||'');renderIconBtn();$('edBg').value=b.bg.toLowerCase();$('edFg').value=b.fg.toLowerCase();$('edType').value=b.type;
-  const v=t=>b.type===t?b.value:'';
+  const at=actType(b);const v=t=>at===t?b.value:'';if(b.type==='toggle'){$('edTogAct').value=b.action||'hotkey';renderToggleStates()}
   $('edHotkey').value=v('hotkey');$('edMedia').value=v('media')||'VOL_UP';$('edText').value=v('text');$('edMacro').value=v('macro');$('edOpen').value=v('open');$('edOpenPreset').value='';
   $('edUrl').value=v('http');$('edMethod').value=b.method||'POST';$('edBody').value=b.body||'';$('edAuth').value=b.auth||'';$('edCt').value=b.contentType||'application/json';
   const ps=$('edPage');ps.innerHTML='';cfg.pages.forEach((p,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=(i+1)+' · '+p.name;ps.appendChild(o)});if(b.type==='page')ps.value=b.value;
@@ -580,7 +601,9 @@ function readEditor(){
   if(sel<0)return;const b=cfg.pages[page].buttons[sel];
   b.label=$('edLabel').value;b.icon=$('edIcon').value;b.bg=$('edBg').value.toUpperCase();b.fg=$('edFg').value.toUpperCase();b.type=$('edType').value;
   delete b.method;delete b.body;delete b.auth;delete b.contentType;
-  switch(b.type){
+  if(b.type==='toggle'){b.action=$('edTogAct').value;if(!b.states||b.states.length<2){b.states=[{label:'An',icon:'circle-check',bg:'#22C55E'},{label:'Aus',icon:'circle-x',bg:'#EF4444'}];b.state=0;renderToggleStates()}}
+  else{delete b.action;delete b.states;delete b.state}
+  switch(actType(b)){
     case'hotkey':b.value=$('edHotkey').value;break;case'media':b.value=$('edMedia').value;break;case'text':b.value=$('edText').value;break;
     case'macro':b.value=$('edMacro').value;break;case'open':b.value=$('edOpen').value;break;case'page':b.value=$('edPage').value;break;
     case'http':b.value=$('edUrl').value;b.method=$('edMethod').value;b.body=$('edBody').value;b.auth=$('edAuth').value;b.contentType=$('edCt').value;break;
@@ -588,29 +611,50 @@ function readEditor(){
   setDirty();renderDeck();updateLens();
 }
 ['edLabel','edIcon','edBg','edFg','edHotkey','edMedia','edText','edMacro','edOpen','edUrl','edMethod','edBody','edAuth','edCt','edPage'].forEach(id=>{$(id).addEventListener('input',readEditor);$(id).addEventListener('change',readEditor)});
+// ---------- Umschalter ----------
+let pickTarget=null;  // null = Symbol der Taste, sonst Funktion(name)
+function curBtn(){return cfg.pages[page].buttons[sel]}
+function renderToggleStates(){
+  const b=curBtn(),box=$('togStates');box.innerHTML='';if(!b.states)return;
+  b.states.forEach((st,i)=>{const r=document.createElement('div');r.className='togrow';
+    const rad=document.createElement('input');rad.type='radio';rad.name='togcur';rad.checked=(b.state||0)===i;rad.title='aktueller Zustand';rad.onchange=()=>{b.state=i;setDirty();renderDeck()};
+    const lb=document.createElement('input');lb.value=st.label;lb.placeholder='Beschriftung';lb.oninput=()=>{st.label=lb.value;setDirty();renderDeck()};
+    const ib=document.createElement('button');ib.type='button';ib.className='iconbtn';const e=st.icon?iconEl(st.icon):null;if(e)ib.appendChild(e);const t=document.createElement('span');t.textContent=st.icon||'Symbol';t.style.cssText='font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';ib.appendChild(t);
+    ib.onclick=()=>{pickTarget=n=>{st.icon=n;setDirty();renderDeck();renderToggleStates()};openIconPicker(st.icon)};
+    const col=document.createElement('input');col.type='color';col.value=(st.bg||'#3B82F6').toLowerCase();col.oninput=()=>{st.bg=col.value.toUpperCase();setDirty();renderDeck()};
+    const del=document.createElement('button');del.type='button';del.className='btn';del.textContent='✕';del.style.padding='6px';del.onclick=()=>{if(b.states.length<=2)return toast('Mindestens 2 Zustände',false);b.states.splice(i,1);b.state=0;setDirty();renderDeck();renderToggleStates()};
+    r.append(rad,lb,ib,col,del);box.appendChild(r)});
+  $('togAdd').disabled=b.states.length>=6;
+}
+$('togAdd').onclick=()=>{const b=curBtn();if(!b.states)b.states=[];if(b.states.length>=6)return;b.states.push({label:'Zustand '+(b.states.length+1),icon:'circle',bg:'#A1A1AA'});setDirty();renderDeck();renderToggleStates()};
+$('edTogAct').onchange=()=>{showFields('toggle');readEditor()};
+function applyTemplate(t){const b=curBtn();Object.assign(b,t);setDirty();render()}
+$('tplSound').onclick=()=>applyTemplate({type:'toggle',action:'hotkey',value:'CTRL+ALT+F11',state:0,states:[{label:'Lautsprecher',icon:'speakerphone',bg:'#3B82F6'},{label:'Kopfhörer',icon:'headphones',bg:'#A855F7'}]});
+$('tplMic').onclick=()=>applyTemplate({type:'toggle',action:'hotkey',value:'CTRL+SHIFT+M',state:0,states:[{label:'Mikro an',icon:'microphone',bg:'#22C55E'},{label:'Mikro aus',icon:'microphone-off',bg:'#EF4444'}]});
+$('tplLight').onclick=()=>applyTemplate({type:'toggle',action:'http',value:'http://homeassistant.local:8123/api/webhook/licht_toggle',method:'POST',body:'',state:0,states:[{label:'Licht aus',icon:'bulb-off',bg:'#71717A'},{label:'Licht an',icon:'bulb',bg:'#F59E0B'}]});
 // ---------- Symbol-Auswahl ----------
 let deviceIcons=Object.keys(ICON_CP),pickFilled=false;
 function renderIconBtn(){const n=$('edIcon').value;const b=$('edIconBtn');b.innerHTML='';const e=n?iconEl(n):null;if(e)b.appendChild(e);const t=document.createElement('span');t.textContent=n||'— kein Symbol —';t.style.color=n?'':'var(--muted)';b.appendChild(t)}
 function renderIconGrid(){
   const q=$('iconSearch').value.trim().toLowerCase();
   const syn=Object.entries(ICON_DE).filter(([de])=>q&&de.startsWith(q)).flatMap(([,en])=>en.split("|"));
-  const cur=$('edIcon').value;const g=$('iconGrid');g.innerHTML='';let count=0;
+  const cur=pickTarget?(pickCur||''):$('edIcon').value;const g=$('iconGrid');g.innerHTML='';let count=0;
   deviceIcons.forEach(n=>{
     const filled=n.endsWith('-filled');if(filled!==pickFilled)return;
     const base=filled?n.slice(0,-7):n;
     if(q&&!base.includes(q)&&!syn.some(x=>base.includes(x)))return;
     const bt=document.createElement('button');bt.title=n;if(n===cur)bt.className='on';
     bt.appendChild(iconEl(n));const sp=document.createElement('span');sp.textContent=base;bt.appendChild(sp);
-    bt.onclick=()=>{$('edIcon').value=n;closeIconPicker();renderIconBtn();readEditor()};
+    bt.onclick=()=>{if(pickTarget){const f=pickTarget;closeIconPicker();f(n);return}$('edIcon').value=n;closeIconPicker();renderIconBtn();readEditor()};
     g.appendChild(bt);count++});
   if(!count)g.innerHTML='<div class="hint" style="grid-column:1/-1">Nichts gefunden'+(pickFilled?' – evtl. gibt es das Symbol nur als „Linie“.':'')+'</div>';
 }
-function openIconPicker(){pickFilled=$('edIcon').value.endsWith('-filled');$('segO').classList.toggle('on',!pickFilled);$('segF').classList.toggle('on',pickFilled);$('iconSearch').value='';renderIconGrid();$('iconModal').classList.add('on');setTimeout(()=>$('iconSearch').focus(),50)}
-function closeIconPicker(){$('iconModal').classList.remove('on')}
-$('edIconBtn').onclick=openIconPicker;
+let pickCur='';function openIconPicker(cur){pickCur=typeof cur==='string'?cur:'';if(typeof cur!=='string')pickTarget=null;pickFilled=(pickTarget?pickCur:$('edIcon').value).endsWith('-filled');$('segO').classList.toggle('on',!pickFilled);$('segF').classList.toggle('on',pickFilled);$('iconSearch').value='';renderIconGrid();$('iconModal').classList.add('on');setTimeout(()=>$('iconSearch').focus(),50)}
+function closeIconPicker(){$('iconModal').classList.remove('on');setTimeout(()=>{pickTarget=null},0)}
+$('edIconBtn').onclick=()=>openIconPicker();
 $('iconClose').onclick=closeIconPicker;
 $('iconModal').onclick=e=>{if(e.target===$('iconModal'))closeIconPicker()};
-$('iconNone').onclick=()=>{$('edIcon').value='';closeIconPicker();renderIconBtn();readEditor()};
+$('iconNone').onclick=()=>{if(pickTarget){const f=pickTarget;closeIconPicker();f('');return}$('edIcon').value='';closeIconPicker();renderIconBtn();readEditor()};
 $('iconSearch').oninput=renderIconGrid;
 $('segO').onclick=()=>{pickFilled=false;$('segO').classList.add('on');$('segF').classList.remove('on');renderIconGrid()};
 $('segF').onclick=()=>{pickFilled=true;$('segF').classList.add('on');$('segO').classList.remove('on');renderIconGrid()};
@@ -620,7 +664,7 @@ $('edOpenPreset').onchange=()=>{const v=$('edOpenPreset').value;if(!v)return;$('
 $('edClear').onclick=()=>{cfg.pages[page].buttons[sel]=blank();setDirty();render()};
 $('edCopy').onclick=()=>{clip=JSON.parse(JSON.stringify(cfg.pages[page].buttons[sel]));toast('Taste kopiert')};
 $('edPaste').onclick=()=>{if(!clip)return toast('Erst eine Taste kopieren',false);cfg.pages[page].buttons[sel]=JSON.parse(JSON.stringify(clip));setDirty();render()};
-$('edTest').onclick=async()=>{try{if(dirty)await save(true);await link.send('press',{page,btn:sel});toast(link.demo?'Demo: würde jetzt ausgelöst':'Ausgelöst')}catch(e){toast(e.message,false)}};
+$('edTest').onclick=async()=>{try{if(dirty)await save(true);await link.send('press',{page,btn:sel});{const tb=curBtn();if(tb.type==='toggle'&&tb.states&&tb.states.length>1){tb.state=((tb.state||0)+1)%tb.states.length;renderDeck();renderToggleStates()}}toast(link.demo?'Demo: würde jetzt ausgelöst':'Ausgelöst')}catch(e){toast(e.message,false)}};
 $('pageName').oninput=()=>{cfg.pages[page].name=$('pageName').value;setDirty();renderPages()};
 $('pageDel').onclick=()=>{if(cfg.pages.length<2)return toast('Mindestens eine Seite nötig',false);if(!confirm('Seite „'+cfg.pages[page].name+'“ löschen?'))return;cfg.pages.splice(page,1);page=Math.max(0,page-1);sel=-1;setDirty();render()};
 function movePage(d){const j=page+d;if(j<0||j>=cfg.pages.length)return;[cfg.pages[page],cfg.pages[j]]=[cfg.pages[j],cfg.pages[page]];page=j;setDirty();render()}

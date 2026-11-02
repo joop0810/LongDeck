@@ -236,7 +236,21 @@ static lv_color_t accentOf(lv_color_t c) {
     return lv_color_make(r, g, b);
 }
 
-static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int idx, int x, int y, int w, int h) {
+// Langes Drücken auf einen Umschalter: nur die Anzeige weiterschalten (falls sie nicht mehr zum PC passt)
+static void onButtonLongPress(lv_event_t *e) {
+    uint32_t data = (uint32_t)(uintptr_t)lv_event_get_user_data(e);
+    xSemaphoreTakeRecursive(g_configMutex, portMAX_DELAY);
+    bool ch = configToggleAdvance((int)(data >> 8), (int)(data & 0xFF));
+    xSemaphoreGiveRecursive(g_configMutex);
+    if (ch) {
+        configRequestSave();
+        g_configChanged = true;  // Neuaufbau außerhalb des Event-Handlers
+    }
+}
+
+static void createButton(lv_obj_t *parent, const DeckButton &bIn, int page, int idx, int x, int y, int w, int h) {
+    const DeckButton b = deckButtonView(bIn);  // Umschalter: aktueller Zustand
+    bool isToggle = bIn.type == ACT_TOGGLE && bIn.states.size() >= 2;
     Skin skin = currentSkin();
     lv_obj_t *o = lv_obj_create(parent);
     lv_obj_remove_style_all(o);
@@ -401,7 +415,8 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
             else lv_obj_align(lb, LV_ALIGN_LEFT_MID, 10, 0);
             lv_obj_clear_flag(lb, LV_OBJ_FLAG_CLICKABLE);
         }
-        lv_obj_add_event_cb(o, onButtonClicked, LV_EVENT_CLICKED, (void *)(uintptr_t)((page << 8) | idx));
+        lv_obj_add_event_cb(o, onButtonClicked, isToggle ? LV_EVENT_SHORT_CLICKED : LV_EVENT_CLICKED, (void *)(uintptr_t)((page << 8) | idx));
+        if (isToggle) lv_obj_add_event_cb(o, onButtonLongPress, LV_EVENT_LONG_PRESSED, (void *)(uintptr_t)((page << 8) | idx));
         s_btns[page].push_back(o);
         return;
     }
@@ -439,7 +454,8 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
         lv_obj_set_width(lb, w - 8);
         lv_obj_clear_flag(lb, LV_OBJ_FLAG_CLICKABLE);
     }
-    lv_obj_add_event_cb(o, onButtonClicked, LV_EVENT_CLICKED, (void *)(uintptr_t)((page << 8) | idx));
+    lv_obj_add_event_cb(o, onButtonClicked, isToggle ? LV_EVENT_SHORT_CLICKED : LV_EVENT_CLICKED, (void *)(uintptr_t)((page << 8) | idx));
+        if (isToggle) lv_obj_add_event_cb(o, onButtonLongPress, LV_EVENT_LONG_PRESSED, (void *)(uintptr_t)((page << 8) | idx));
     s_btns[page].push_back(o);
 }
 

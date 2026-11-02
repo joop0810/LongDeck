@@ -9,15 +9,15 @@ volatile bool g_configChanged = false;
 
 static const char *CONFIG_PATH = "/config.json";
 
-static const char *TYPE_NAMES[] = {"none", "hotkey", "media", "text", "http", "page", "macro", "open"};
+static const char *TYPE_NAMES[] = {"none", "hotkey", "media", "text", "http", "page", "macro", "open", "toggle"};
 
 const char *actionTypeName(ActionType t) {
-    if (t > ACT_OPEN) return "none";
+    if (t > ACT_TOGGLE) return "none";
     return TYPE_NAMES[t];
 }
 
 ActionType actionTypeFromName(const String &s) {
-    for (uint8_t i = 0; i <= ACT_OPEN; i++) {
+    for (uint8_t i = 0; i <= ACT_TOGGLE; i++) {
         if (s.equalsIgnoreCase(TYPE_NAMES[i])) return (ActionType)i;
     }
     return ACT_NONE;
@@ -138,7 +138,18 @@ void configToJson(JsonDocument &doc) {
             o["fg"] = colorToHex(b.fg);
             o["type"] = actionTypeName(b.type);
             o["value"] = b.value;
-            if (b.type == ACT_HTTP) {
+            if (b.type == ACT_TOGGLE) {
+                o["action"] = actionTypeName(b.action);
+                o["state"] = b.state;
+                JsonArray st = o["states"].to<JsonArray>();
+                for (const ToggleState &t : b.states) {
+                    JsonObject so = st.add<JsonObject>();
+                    so["label"] = t.label;
+                    so["icon"] = t.icon;
+                    so["bg"] = colorToHex(t.bg);
+                }
+            }
+            if (b.type == ACT_HTTP || (b.type == ACT_TOGGLE && b.action == ACT_HTTP)) {
                 o["method"] = b.method;
                 o["body"] = b.body;
                 o["auth"] = b.auth;
@@ -180,6 +191,21 @@ bool configFromJson(JsonDocument &doc, String &err) {
             b.body = o["body"] | "";
             b.auth = o["auth"] | "";
             b.contentType = o["contentType"] | "application/json";
+            if (b.type == ACT_TOGGLE) {
+                b.action = actionTypeFromName(o["action"] | "hotkey");
+                if (b.action == ACT_TOGGLE || b.action == ACT_PAGE) b.action = ACT_HOTKEY;
+                for (JsonObject so : o["states"].as<JsonArray>()) {
+                    ToggleState t;
+                    t.label = so["label"] | "";
+                    t.icon = so["icon"] | "";
+                    t.bg = hexToColor(so["bg"] | "", 0x3B82F6);
+                    b.states.push_back(t);
+                    if (b.states.size() >= 6) break;
+                }
+                b.state = o["state"] | 0;
+                if (b.states.empty()) b.state = 0;
+                else if (b.state >= b.states.size()) b.state = 0;
+            }
             p.buttons.push_back(b);
         }
         c.pages.push_back(p);
@@ -229,5 +255,36 @@ void configBegin() {
         LOGF("[config] Standard-Konfiguration wird verwendet" "\n");
         configDefaults();
         configSave();
+    }
+}
+
+DeckButton deckButtonView(const DeckButton &b) {
+    DeckButton v = b;
+    if (b.type == ACT_TOGGLE && !b.states.empty()) {
+        const ToggleState &t = b.states[b.state < b.states.size() ? b.state : 0];
+        v.label = t.label;
+        v.icon = t.icon;
+        v.bg = t.bg;
+    }
+    return v;
+}
+
+bool configToggleAdvance(int page, int button) {
+    if (page < 0 || page >= (int)g_config.pages.size()) return false;
+    if (button < 0 || button >= (int)g_config.pages[page].buttons.size()) return false;
+    DeckButton &b = g_config.pages[page].buttons[button];
+    if (b.type != ACT_TOGGLE || b.states.size() < 2) return false;
+    b.state = (b.state + 1) % b.states.size();
+    return true;
+}
+
+static uint32_t s_saveAt = 0;
+void configRequestSave() { s_saveAt = millis() + 3000; }
+void configSaveLoop() {
+    if (s_saveAt && millis() > s_saveAt) {
+        s_saveAt = 0;
+        xSemaphoreTakeRecursive(g_configMutex, portMAX_DELAY);
+        configSave();
+        xSemaphoreGiveRecursive(g_configMutex);
     }
 }

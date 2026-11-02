@@ -2,6 +2,7 @@
 #include "keys.h"
 
 struct ActionJob {
+    bool toggle = false;
     int8_t page;
     int8_t button;
     DeckButton btn;
@@ -18,6 +19,7 @@ static void postResult(const ActionJob &job, bool ok, const String &msg, int got
     r.button = job.button;
     r.ok = ok;
     r.gotoPage = gotoPage;
+    r.toggle = job.toggle;
     strlcpy(r.msg, msg.c_str(), sizeof(r.msg));
     xQueueSend(s_results, &r, 0);
 }
@@ -172,6 +174,10 @@ void actionsTrigger(int page, int button) {
         job->btn = g_config.pages[page].buttons[button];
         job->layout = g_config.layout;
         job->typeDelay = g_config.typeDelay;
+        if (job->btn.type == ACT_TOGGLE) {
+            job->toggle = true;
+            job->btn.type = job->btn.action;  // eigentliche Aktion ausführen
+        }
     }
     xSemaphoreGiveRecursive(g_configMutex);
     if (!valid || job->btn.type == ACT_NONE) {

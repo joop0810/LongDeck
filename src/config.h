@@ -8,7 +8,7 @@
 #define LD_MAX_COLS  8
 #define LD_MAX_ROWS  3
 
-#define LONGDECK_VERSION "1.6.1"
+#define LONGDECK_VERSION "1.7.0"
 
 // Aktionstypen einer Taste
 enum ActionType : uint8_t {
@@ -20,6 +20,14 @@ enum ActionType : uint8_t {
     ACT_PAGE,     // Zu Seite springen (value = Seitennummer, 1-basiert)
     ACT_MACRO,    // Mehrere Schritte, eine Zeile pro Schritt (key:/text:/media:/delay:/page:/open:)
     ACT_OPEN,     // Programm, Datei, Ordner oder Webseite öffnen (über Win+R)
+    ACT_TOGGLE,   // Umschalter: führt "action" aus und wechselt danach Icon/Text/Farbe (states)
+};
+
+// Ein Zustand eines Umschalters (z. B. "Lautsprecher" / "Kopfhörer")
+struct ToggleState {
+    String label;
+    String icon;
+    uint32_t bg = 0x3B82F6;
 };
 
 struct DeckButton {
@@ -33,7 +41,19 @@ struct DeckButton {
     String body;          // HTTP: Body
     String auth;          // HTTP: Bearer-Token (optional)
     String contentType;   // HTTP: Content-Type (Standard application/json)
+    // Nur für Umschalter:
+    ActionType action = ACT_HOTKEY;    // was beim Drücken ausgeführt wird
+    std::vector<ToggleState> states;   // 2..6 Zustände
+    uint8_t state = 0;                 // aktueller Zustand
 };
+
+// Anzeige einer Taste (beim Umschalter: Label/Icon/Farbe des aktuellen Zustands)
+DeckButton deckButtonView(const DeckButton &b);
+// Umschalter einen Zustand weiterschalten; true wenn geändert
+bool configToggleAdvance(int page, int button);
+// Verzögertes Speichern (z. B. nach Zustandswechsel), configSaveLoop() in loop() aufrufen
+void configRequestSave();
+void configSaveLoop();
 
 struct DeckPage {
     String name;

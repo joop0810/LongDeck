@@ -1,6 +1,6 @@
 {
   "name": "LongDeck",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "new_install_prompt_erase": false,
   "builds": [
     {

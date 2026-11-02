@@ -110,6 +110,7 @@ static void lvglBegin() {
     lv_indev_drv_init(&indevDrv);
     indevDrv.type = LV_INDEV_TYPE_POINTER;
     indevDrv.read_cb = touchRead;
+    indevDrv.long_press_time = 700;  // Umschalter: langes Drücken = nur Anzeige wechseln
     lv_indev_drv_register(&indevDrv);
 }
 
@@ -141,6 +142,7 @@ void loop() {
     if (transfer_num <= 1 && lcd_PushColors_len > 0) lcd_PushColors(0, 0, 0, 0, NULL);
 
     protocolLoop();
+    configSaveLoop();
 
     if (g_configChanged) {
         g_configChanged = false;
@@ -152,6 +154,15 @@ void loop() {
     ActionResult r;
     while (actionsPollResult(r)) {
         if (r.gotoPage >= 0) uiGotoPage(r.gotoPage);
+        if (r.toggle && r.ok) {
+            xSemaphoreTakeRecursive(g_configMutex, portMAX_DELAY);
+            bool ch = configToggleAdvance(r.page, r.button);
+            xSemaphoreGiveRecursive(g_configMutex);
+            if (ch) {
+                configRequestSave();
+                uiBuild();
+            }
+        }
         if (!r.ok) {
             uiFlashButton(r.page, r.button, false);
             uiToast(r.msg[0] ? r.msg : "Fehler", false);

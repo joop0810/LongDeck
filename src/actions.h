@@ -8,6 +8,7 @@ struct ActionResult {
     int8_t button;
     bool ok;
     int16_t gotoPage;  // >= 0: UI soll auf diese Seite springen
+    bool toggle;       // Umschalter: nach Erfolg Zustand weiterschalten
     char msg[48];
 };
 
