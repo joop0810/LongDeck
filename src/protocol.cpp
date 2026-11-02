@@ -4,12 +4,17 @@
 #include "icons.h"
 #include "log.h"
 #include "esp32-hal-tinyusb.h"
+#include <LittleFS.h>
+#include "mbedtls/base64.h"
 
 static String s_line;
 static bool s_overflow = false;
 static uint32_t s_lastSeen = 0;
 static uint32_t s_restartAt = 0;
 static bool s_toBootloader = false;
+static File s_bgFile;
+static size_t s_bgWritten = 0;
+static const size_t BG_SIZE = 640 * 180 * 2;
 
 static const size_t MAX_LINE = 200 * 1024;  // Konfiguration kann einige 10 KB groß werden
 
@@ -65,6 +70,7 @@ static void handle(const String &line) {
             res["maxPages"] = LD_MAX_PAGES;
             res["maxCols"] = LD_MAX_COLS;
             res["maxRows"] = LD_MAX_ROWS;
+            res["hasBgImage"] = LittleFS.exists("/bg.bin");
         }
     } else if (cmd == "get") {
         JsonDocument cfg;
@@ -90,6 +96,33 @@ static void handle(const String &line) {
         configDefaults();
         configSave();
         xSemaphoreGiveRecursive(g_configMutex);
+        g_configChanged = true;
+    } else if (cmd == "bgbegin") {
+        // Hintergrundbild hochladen: 640x180 RGB565 (LE), in Stücken als Base64
+        if (s_bgFile) s_bgFile.close();
+        s_bgFile = LittleFS.open("/bg.tmp", "w");
+        s_bgWritten = 0;
+        if (!s_bgFile) return replyError(id, "Datei konnte nicht angelegt werden");
+    } else if (cmd == "bgchunk") {
+        if (!s_bgFile) return replyError(id, "bgbegin fehlt");
+        const char *data = req["data"] | "";
+        size_t inLen = strlen(data), outLen = 0;
+        static uint8_t buf[6144];
+        if (mbedtls_base64_decode(buf, sizeof(buf), &outLen, (const unsigned char *)data, inLen) != 0)
+            return replyError(id, "Base64 ungueltig");
+        if (s_bgWritten + outLen > BG_SIZE) return replyError(id, "Bild zu gross");
+        if (s_bgFile.write(buf, outLen) != outLen) return replyError(id, "Schreibfehler (Speicher voll?)");
+        s_bgWritten += outLen;
+        res["written"] = (uint32_t)s_bgWritten;
+    } else if (cmd == "bgend") {
+        if (!s_bgFile) return replyError(id, "bgbegin fehlt");
+        s_bgFile.close();
+        if (s_bgWritten != BG_SIZE) {
+            LittleFS.remove("/bg.tmp");
+            return replyError(id, "Bild unvollstaendig");
+        }
+        LittleFS.remove("/bg.bin");
+        LittleFS.rename("/bg.tmp", "/bg.bin");
         g_configChanged = true;
     } else if (cmd == "reboot") {
         s_restartAt = millis() + 300;

@@ -33,7 +33,7 @@ section{display:none}section.on{display:block}
 .deck .key{position:absolute}
 .deck.glass{background:radial-gradient(ellipse 42% 95% at 14% 5%,rgba(43,89,240,.45),transparent 70%),radial-gradient(ellipse 45% 100% at 88% 95%,rgba(138,63,252,.42),transparent 70%),radial-gradient(ellipse 32% 70% at 52% 105%,rgba(16,200,176,.25),transparent 70%),linear-gradient(#06070b,#0c0e15)}
 .deck.glass .key{background-image:none;overflow:hidden}
-.deck.glass .key.frost::before{display:none}
+.deck.glass .key.frost::before,.deck.glass .key.dash::before{display:none}
 .deck.glass .key::before{content:"";position:absolute;left:1px;right:1px;top:1px;height:45%;border-radius:inherit;background:linear-gradient(rgba(255,255,255,.11),var(--sheen,transparent));pointer-events:none}
 .deck:not(.glass) .key.empty{background:#0a0a0c!important;border:1px solid #1a1a1f}
 .deck.glass .key.empty{background:rgba(255,255,255,.04)!important;border:1px solid rgba(255,255,255,.11)}
@@ -227,7 +227,7 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
     <div class="grid2">
       <div><label>Spalten (1–8)</label><input type="number" id="sCols" min="1" max="8"></div>
       <div><label>Zeilen (1–3)</label><input type="number" id="sRows" min="1" max="3"></div>
-      <div><label>Skin</label><select id="sTheme"><option value="minimal">Minimal – schwarz, Icon in Farbe</option><option value="soft">Soft Color – zart getönt, gefüllte Icons</option><option value="bold">Bold – volle Farbe, nur Icon</option><option value="mono">Mono – weiß/grau, ganz clean</option><option value="frost">Milchglas – dezent, Icon in Farbe</option><option value="frost-tint">Milchglas getönt – leicht gefärbt, Icon weiß</option><option value="frost-light">Helles Glas – schwarze Icons</option><option value="frost-dark">Dunkles Glas – weiße Icons</option><option value="glass">Glas mit Glanz – leuchtend</option><option value="flat">Klassisch – farbige Kacheln</option></select></div>
+      <div><label>Skin</label><select id="sTheme"><option value="dash">Dashboard – Karten wie Home Assistant</option><option value="minimal">Minimal – schwarz, Icon in Farbe</option><option value="soft">Soft Color – zart getönt, gefüllte Icons</option><option value="bold">Bold – volle Farbe, nur Icon</option><option value="mono">Mono – weiß/grau, ganz clean</option><option value="frost">Milchglas – dezent, Icon in Farbe</option><option value="frost-tint">Milchglas getönt – leicht gefärbt, Icon weiß</option><option value="frost-light">Helles Glas – schwarze Icons</option><option value="frost-dark">Dunkles Glas – weiße Icons</option><option value="glass">Glas mit Glanz – leuchtend</option><option value="flat">Klassisch – farbige Kacheln</option></select></div>
       <div><label>Kachelform</label><select id="sSquare"><option value="1">Quadratisch – Rand oben/unten statt langgezogen</option><option value="0">Ganze Höhe ausfüllen</option></select></div>
       <div><label>Helligkeit</label><input type="range" id="sBright" min="10" max="255"></div>
       <div><label>Dimmen nach (Sekunden, 0 = nie)</label><input type="number" id="sDim" min="0" max="3600"></div>
@@ -235,6 +235,34 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
       <div><label>Gerätename (USB, nach Neustart)</label><input id="sName" maxlength="24"></div>
     </div>
     <div class="hint">Ändert man Spalten/Zeilen, bleiben die Tasten an ihrer Position; überzählige fallen weg.</div>
+  </div>
+  <div class="card">
+    <h2>Hintergrund</h2>
+    <div class="grid2">
+      <div><label>Hintergrund</label><select id="sBg">
+        <option value="auto">Automatisch (Glas-Skins farbig, sonst schwarz)</option>
+        <option value="black">Schwarz</option>
+        <option value="ember">Glut – dunkel, warmes Bernstein</option><option value="aurora">Aurora – Blau/Violett</option>
+        <option value="midnight">Mitternacht – sehr dunkles Blau</option>
+        <option value="graphite">Graphit – dunkelgrau</option>
+        <option value="ocean">Ozean – Türkis/Blau</option>
+        <option value="sunset">Sonnenuntergang – Orange/Pink</option>
+        <option value="forest">Wald – Grün</option>
+        <option value="image">Eigenes Bild …</option>
+      </select></div>
+    </div>
+    <div id="bgImageBox" style="display:none;margin-top:14px">
+      <div class="row">
+        <label class="btn" style="margin:0;color:var(--text)">🖼 Bild wählen<input type="file" id="bgFile" accept="image/*" hidden></label>
+        <span class="hint" id="bgInfo">Noch kein Bild gewählt. Am besten etwas Dunkles, Ruhiges.</span>
+      </div>
+      <div class="grid2">
+        <div><label>Abdunkeln</label><input type="range" id="bgDim" min="0" max="85" value="45"></div>
+        <div><label>Weichzeichnen</label><input type="range" id="bgBlur" min="0" max="24" value="8"></div>
+      </div>
+      <canvas id="bgCanvas" width="640" height="180" style="width:100%;max-width:640px;border-radius:10px;margin-top:10px;display:block;background:#000"></canvas>
+      <div class="row" style="margin-top:10px"><button class="btn primary" id="bgUpload" disabled>Bild aufs Gerät laden</button><span class="hint" id="bgProg"></span></div>
+    </div>
   </div>
   <div class="card">
     <h2>Tastatur</h2>
@@ -361,7 +389,7 @@ class SerialLink{
 }
 
 // Demo ohne Gerät
-const DEMO_CFG={deviceName:"LongDeck",cols:6,rows:2,squareTiles:true,theme:"minimal",brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
+const DEMO_CFG={deviceName:"LongDeck",cols:6,rows:2,squareTiles:true,theme:"minimal",background:"auto",brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
  {name:"Start",buttons:[["Leiser","volume_mid","#3B82F6","media","VOL_DOWN"],["Stumm","mute","#EF4444","media","MUTE"],["Lauter","volume_max","#3B82F6","media","VOL_UP"],["Zurück","prev","#22C55E","media","PREV"],["Play","play","#22C55E","media","PLAY_PAUSE"],["Weiter","next","#22C55E","media","NEXT"],["Kopieren","copy","#A1A1AA","hotkey","CTRL+C"],["Einfügen","paste","#A1A1AA","hotkey","CTRL+V"],["Screenshot","image","#A855F7","hotkey","GUI+SHIFT+S"],["Task-\nManager","list","#F59E0B","hotkey","CTRL+SHIFT+ESC"],["Desktop","home","#A1A1AA","hotkey","GUI+D"],["Sperren","power","#EF4444","hotkey","GUI+L"]]},
  {name:"Werkzeuge",buttons:[["Explorer","directory","#F59E0B","hotkey","GUI+E"],["Editor","edit","#A1A1AA","open","notepad"],["Einstell.","settings","#A1A1AA","hotkey","GUI+I"],["Rechner","keyboard","#3B82F6","open","calc"],["Gruß","edit","#22C55E","text","Viele Grüße\n"],["Mic aus","mute","#EF4444","hotkey","CTRL+SHIFT+M"],["Rückgängig","loop","#A1A1AA","hotkey","CTRL+Z"],["Wieder-\nholen","refresh","#A1A1AA","hotkey","CTRL+Y"],["Speichern","save","#3B82F6","hotkey","CTRL+S"],["Neuer Tab","plus","#A1A1AA","hotkey","CTRL+T"],["Alt+Tab","shuffle","#A1A1AA","hotkey","ALT+TAB"],["Start","home","#22C55E","page","1"]]}]};
 DEMO_CFG.pages.forEach(p=>p.buttons=p.buttons.map(([label,icon,bg,type,value])=>({label,icon,bg,fg:"#FFFFFF",type,value})));
@@ -372,6 +400,7 @@ class DemoLink{
     if(cmd==='hello'||cmd==='ping')return {ok:true,version:'demo',icons:Object.keys(ICON_CP),media:Object.keys(MEDIA_LABELS)};
     if(cmd==='get')return {ok:true,config:JSON.parse(JSON.stringify(this.cfg))};
     if(cmd==='set'){this.cfg=JSON.parse(JSON.stringify(extra.config));return {ok:true}}
+    if(cmd.startsWith('bg'))return {ok:true};
     if(cmd==='reset'){this.cfg=JSON.parse(JSON.stringify(DEMO_CFG));return {ok:true}}
     return {ok:true}}
   async close(){}
@@ -478,7 +507,7 @@ function renderPages(){
   $('pageName').value=cfg.pages[page].name;
 }
 function renderDeck(){
-  const d=$('deck');d.innerHTML='';const skin=cfg.theme||'minimal',glass=skin==='glass',frost=skin.startsWith('frost');d.classList.toggle('glass',glass||frost);d.dataset.skin=skin;
+  const d=$('deck');d.innerHTML='';const skin=cfg.theme||'minimal',glass=skin==='glass',frost=skin.startsWith('frost');d.classList.toggle('glass',glass||frost);d.dataset.skin=skin;d.style.background=deckBackground();
   // gleiche Aufteilung wie auf dem Gerät (640x180, ui.cpp)
   const W=640,H=180,PAD=6,GAP=6,DOTS=12,cols=cfg.cols,rows=cfg.rows;
   const w=Math.floor((W-2*PAD-(cols-1)*GAP)/cols),availH=H-PAD-DOTS;
@@ -497,6 +526,7 @@ function renderDeck(){
       if(skin==='minimal'){k.style.background='#111114';k.style.border='1px solid #232329';k.style.borderRadius='16px';k.dataset.ic=rgb(a);k.dataset.lb='#9a9aa3'}
       else if(skin==='soft'){k.style.background=rgb(mix(a,blk,38));k.style.borderRadius='18px';k.dataset.ic=rgb(a);k.dataset.lb='#e7e7ea';k.dataset.filled=1}
       else if(skin==='bold'){const ga=(a.join()==='200,200,206'||a.join()==='212,212,216')?[63,63,70]:a;k.style.background=rgb(ga);k.style.borderRadius='18px';k.dataset.ic='#fff';k.dataset.lb='#fff';k.dataset.filled=1;if(b.icon)k.dataset.nolabel=1}
+      else if(skin==='dash'){const bc=mix(a,[42,42,46],50);k.style.background='linear-gradient(rgba(28,28,31,.88),rgba(17,17,19,.88))';k.style.border=`1px solid ${rgb(bc)}`;k.style.borderRadius='14px';k.classList.add('dash');k.dataset.ic=rgb(a);k.dataset.lb='#f2f2f3'}
       else if(frost){let f=[255,255,255],o=.086,bc=[255,255,255],bo=.1;
         if(skin==='frost'){k.dataset.ic=rgb(a);k.dataset.lb='#c9cbd1'}
         if(skin==='frost-tint'){f=a;o=.18;bc=a;bo=.24;k.dataset.ic='#fff';k.dataset.lb='#edeef2'}
@@ -511,6 +541,11 @@ function renderDeck(){
     const ie=iname?iconEl(iname,'ic'):null;const showLb=!k.dataset.nolabel&&b.label;
     if(ie){const room=Math.min(w,h)-(showLb?22:0);let px=room>=90?48:(room>=48?32:24);if(skin==='bold'&&!showLb&&room>=70)px=48;ie.style.fontSize=(px/W*100)+'cqw';if(k.dataset.ic)ie.style.color=k.dataset.ic;k.appendChild(ie)}
     if(!ie||showLb||empty){const l=document.createElement('div');l.textContent=b.label||(empty?'+':'');if(ie&&k.dataset.lb)l.style.color=k.dataset.lb;else if(k.dataset.ic)l.style.color=k.dataset.ic;k.appendChild(l)}
+    if(k.classList.contains('dash')){k.innerHTML='';const a=hexRgb(b.bg),ac=accentOf(a);const ie2=b.icon?iconEl(b.icon):null;const lab=!!b.label;
+      const bsz=lab?Math.min(36,h/2):Math.min(56,Math.min(w,h)-16);
+      if(ie2){const bd=document.createElement('div');bd.style.cssText=`position:absolute;width:${bsz/W*100}cqw;height:${bsz/W*100}cqw;border-radius:50%;background:${rgba(ac,.22)};display:flex;align-items:center;justify-content:center;`+(lab?`left:${8/w*100}%;top:${8/h*100}%`:'left:50%;top:50%;transform:translate(-50%,-50%)');ie2.style.color=rgb(ac);ie2.style.fontSize=((bsz>=50?32:24)/W*100)+'cqw';bd.appendChild(ie2);k.appendChild(bd)}
+      if(lab){const l=document.createElement('div');l.textContent=b.label.replace(/\n/g,' ');l.style.cssText=`position:absolute;left:${10/w*100}%;right:${8/w*100}%;${ie2?`bottom:${8/h*100}%`:'top:50%;transform:translateY(-50%)'};color:#f2f2f3;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600`;k.appendChild(l)}
+      k.style.alignItems='stretch'}
     k.onclick=()=>{sel=i;render()};
     k.ondragstart=()=>{dragFrom=i;k.classList.add('drag')};k.ondragend=()=>k.classList.remove('drag');
     k.ondragover=e=>e.preventDefault();
@@ -607,7 +642,7 @@ $('edHotkey').addEventListener('keydown',e=>{if(!recording)return;e.preventDefau
   $('edHotkey').value=[...m,k].join('+');stopRec();readEditor()});
 
 // Einstellungen
-function renderSettings(){$('sCols').value=cfg.cols;$('sRows').value=cfg.rows;$('sBright').value=cfg.brightness;$('sDim').value=cfg.dimAfter;$('sDimB').value=cfg.dimBrightness;$('sName').value=cfg.deviceName;$('sLayout').value=cfg.layout;$('sDelay').value=cfg.typeDelay;$('sSquare').value=cfg.squareTiles===false?'0':'1';$('sTheme').value=cfg.theme||'minimal'}
+function renderSettings(){$('sCols').value=cfg.cols;$('sRows').value=cfg.rows;$('sBright').value=cfg.brightness;$('sDim').value=cfg.dimAfter;$('sDimB').value=cfg.dimBrightness;$('sName').value=cfg.deviceName;$('sLayout').value=cfg.layout;$('sDelay').value=cfg.typeDelay;$('sSquare').value=cfg.squareTiles===false?'0':'1';$('sTheme').value=cfg.theme||'minimal';$('sBg').value=cfg.background||'auto';$('bgImageBox').style.display=cfg.background==='image'?'block':'none'}
 function resizeGrid(cols,rows){
   cols=Math.min(8,Math.max(1,cols|0));rows=Math.min(3,Math.max(1,rows|0));if(cols===cfg.cols&&rows===cfg.rows)return;
   cfg.pages.forEach(p=>{const old=p.buttons,nb=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)nb.push(r<cfg.rows&&c<cfg.cols?old[r*cfg.cols+c]:blank());p.buttons=nb});
@@ -618,6 +653,52 @@ $('sSquare').onchange=()=>{cfg.squareTiles=$('sSquare').value==='1';setDirty();r
 $('sCols').onchange=()=>resizeGrid(+$('sCols').value,cfg.rows);$('sRows').onchange=()=>resizeGrid(cfg.cols,+$('sRows').value);
 [['sBright','brightness',1],['sDim','dimAfter',1],['sDimB','dimBrightness',1],['sName','deviceName',0],['sLayout','layout',0],['sDelay','typeDelay',1]].forEach(([id,key,num])=>{$(id).addEventListener('input',()=>{cfg[key]=num?+$(id).value:$(id).value;setDirty()})});
 
+// ---------- Hintergrund ----------
+// Muss zu BACKDROPS in ui.cpp passen
+const BG_PRESETS={
+ aurora:{top:[6,7,11],bottom:[12,14,21],blobs:[[90,10,260,0x2B,0x59,0xF0,.45],[560,170,280,0x8A,0x3F,0xFC,.42],[330,190,200,0x10,0xC8,0xB0,.25]]},
+ midnight:{top:[4,6,12],bottom:[10,14,28],blobs:[[120,0,300,0x1E,0x3A,0x8A,.35],[540,180,260,0x24,0x2E,0x6B,.30]]},
+ graphite:{top:[10,10,12],bottom:[22,22,26],blobs:[[320,0,340,0x55,0x58,0x60,.22]]},
+ ocean:{top:[3,10,14],bottom:[6,22,30],blobs:[[100,180,280,0x06,0xB6,0xD4,.30],[520,0,260,0x25,0x63,0xEB,.35]]},
+ sunset:{top:[14,6,10],bottom:[24,10,14],blobs:[[80,180,260,0xF9,0x73,0x16,.32],[560,0,280,0xDB,0x27,0x77,.34],[330,90,200,0x7C,0x3A,0xED,.18]]},
+ ember:{top:[12,9,8],bottom:[22,13,9],blobs:[[560,140,330,0x8A,0x45,0x18,.42],[60,0,240,0x4A,0x2A,0x16,.30]]},
+ forest:{top:[4,10,8],bottom:[8,20,14],blobs:[[140,0,280,0x16,0xA3,0x4A,.30],[520,180,260,0x0D,0x94,0x88,.28]]}};
+const bgCache={};
+function presetURL(name){
+  if(bgCache[name])return bgCache[name];const pr=BG_PRESETS[name]||BG_PRESETS.aurora;
+  const c=document.createElement('canvas');c.width=640;c.height=180;const ctx=c.getContext('2d');const im=ctx.createImageData(640,180);
+  for(let y=0;y<180;y++){const t=y/180;for(let x=0;x<640;x++){let r=pr.top[0]+(pr.bottom[0]-pr.top[0])*t,g=pr.top[1]+(pr.bottom[1]-pr.top[1])*t,b=pr.top[2]+(pr.bottom[2]-pr.top[2])*t;
+    for(const [bx,by,br,cr,cg,cb,st] of pr.blobs){const dx=x-bx,dy=(y-by)*1.6,d2=(dx*dx+dy*dy)/(br*br);if(d2>=1)continue;let f=1-d2;f=f*f*st;r+=cr*f;g+=cg*f;b+=cb*f}
+    const i=(y*640+x)*4;im.data[i]=Math.min(255,r);im.data[i+1]=Math.min(255,g);im.data[i+2]=Math.min(255,b);im.data[i+3]=255}}
+  ctx.putImageData(im,0,0);return bgCache[name]=c.toDataURL()}
+const GLASS_SKINS=['glass','frost','frost-tint','frost-light','frost-dark','dash'];
+function effectiveBg(){let k=cfg.background||'auto';if(k==='auto')k=GLASS_SKINS.includes(cfg.theme||'minimal')?((cfg.theme==='dash')?'ember':'aurora'):'black';return k}
+function deckBackground(){const k=effectiveBg();if(k==='black')return '#000';
+  if(k==='image'){let u=null;try{u=localStorage.getItem('longdeck-bg')}catch(e){}return u?`center/cover url(${u})`:`center/cover url(${presetURL('aurora')})`}
+  return `center/cover url(${presetURL(k)})`}
+let bgImg=null;
+function drawBg(){const c=$('bgCanvas'),ctx=c.getContext('2d');ctx.fillStyle='#000';ctx.fillRect(0,0,640,180);if(!bgImg)return;
+  const blur=+$('bgBlur').value,dim=+$('bgDim').value/100;const sc=Math.max(640/bgImg.width,180/bgImg.height),w=bgImg.width*sc,h=bgImg.height*sc;
+  ctx.filter=`blur(${blur}px) brightness(${1-dim})`;const pad=blur*2;
+  ctx.drawImage(bgImg,(640-w)/2-pad,(180-h)/2-pad,w+pad*2,h+pad*2);ctx.filter='none'}
+$('sBg').onchange=()=>{cfg.background=$('sBg').value;$('bgImageBox').style.display=cfg.background==='image'?'block':'none';setDirty();renderDeck()};
+$('bgFile').onchange=e=>{const f=e.target.files[0];if(!f)return;const img=new Image();img.onload=()=>{bgImg=img;$('bgInfo').textContent=f.name+' – Ausschnitt wird automatisch auf 640×180 zugeschnitten.';$('bgUpload').disabled=false;drawBg()};img.src=URL.createObjectURL(f)};
+['bgDim','bgBlur'].forEach(id=>$(id).oninput=drawBg);
+$('bgUpload').onclick=async()=>{
+  if(!link)return toast('Nicht verbunden',false);drawBg();
+  const px=$('bgCanvas').getContext('2d').getImageData(0,0,640,180).data;const out=new Uint8Array(640*180*2);
+  for(let i=0,j=0;i<px.length;i+=4,j+=2){const v=((px[i]>>3)<<11)|((px[i+1]>>2)<<5)|(px[i+2]>>3);out[j]=v&255;out[j+1]=v>>8}
+  const btn=$('bgUpload');btn.disabled=true;
+  try{
+    await link.send('bgbegin');const CH=4096;
+    for(let o=0;o<out.length;o+=CH){let bin='';const part=out.subarray(o,o+CH);for(let k=0;k<part.length;k++)bin+=String.fromCharCode(part[k]);
+      await link.send('bgchunk',{data:btoa(bin)});$('bgProg').textContent='Übertrage … '+Math.round((o+CH)/out.length*100)+' %'}
+    await link.send('bgend');
+    try{localStorage.setItem('longdeck-bg',$('bgCanvas').toDataURL('image/jpeg',.85))}catch(e){}
+    cfg.background='image';$('sBg').value='image';await save(true);renderDeck();
+    $('bgProg').textContent='Fertig';toast('Hintergrund aufs Gerät geladen');
+  }catch(e){toast('Fehler: '+e.message,false);$('bgProg').textContent=''}
+  btn.disabled=false};
 async function save(silent){if(!link)throw new Error('Nicht verbunden');normalize();await link.send('set',{config:cfg});setDirty(false);if(!silent)toast('Gespeichert – Gerät aktualisiert')}
 $('saveBtn').onclick=()=>save().catch(e=>toast(e.message,false));
 window.addEventListener('keydown',e=>{if(link&&(e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save().catch(er=>toast(er.message,false))}});

@@ -95,7 +95,8 @@ void configNormalize() {
     c.brightness = max<uint8_t>(c.brightness, 10);
     c.typeDelay = constrain(c.typeDelay, 2, 200);
     if (c.layout != "de" && c.layout != "us") c.layout = "de";
-    if (c.theme != "minimal" && c.theme != "soft" && c.theme != "bold" && c.theme != "mono" && c.theme != "glass" && c.theme != "flat" && !c.theme.startsWith("frost")) c.theme = "minimal";
+    if (c.theme != "minimal" && c.theme != "soft" && c.theme != "bold" && c.theme != "mono" && c.theme != "glass" && c.theme != "flat" && !c.theme.startsWith("frost") && c.theme != "dash") c.theme = "minimal";
+    if (c.background.length() == 0) c.background = "auto";
     if (c.deviceName.length() == 0) c.deviceName = "LongDeck";
     if (c.pages.empty()) {
         DeckPage p;
@@ -127,6 +128,7 @@ void configToJson(JsonDocument &doc) {
     doc["typeDelay"] = c.typeDelay;
     doc["squareTiles"] = c.squareTiles;
     doc["theme"] = c.theme;
+    doc["background"] = c.background;
     JsonArray pages = doc["pages"].to<JsonArray>();
     for (const DeckPage &p : c.pages) {
         JsonObject jp = pages.add<JsonObject>();
@@ -166,6 +168,7 @@ bool configFromJson(JsonDocument &doc, String &err) {
     c.typeDelay = doc["typeDelay"] | 8;
     c.squareTiles = doc["squareTiles"] | true;
     c.theme = doc["theme"] | "minimal";
+    c.background = doc["background"] | "auto";
     for (JsonObject jp : doc["pages"].as<JsonArray>()) {
         DeckPage p;
         p.name = jp["name"] | "";

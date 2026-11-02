@@ -5,6 +5,7 @@
 #include "keys.h"
 #include "icons.h"
 #include "lvgl.h"
+#include <LittleFS.h>
 #include <vector>
 
 // Schriften mit Umlauten, Sonderzeichen (Latin-1, €, „“) und LVGL-Symbolen (src/font_de_*.c)
@@ -65,44 +66,94 @@ static lv_color_t *s_backdropBuf = nullptr;
 static lv_obj_t *s_backdrop = nullptr;
 
 struct Blob { float x, y, r; uint8_t cr, cg, cb; float strength; };
+struct BackdropPreset { const char *name; uint8_t top[3], bottom[3]; Blob blobs[3]; int nblobs; };
 
-static void renderBackdrop() {
-    if (s_backdropBuf) return;
-    s_backdropBuf = (lv_color_t *)ps_malloc(sizeof(lv_color_t) * SCR_W * SCR_H);
-    if (!s_backdropBuf) return;
-    const Blob blobs[] = {
-        {90, 10, 260, 0x2B, 0x59, 0xF0, 0.45f},   // Blau oben links
-        {560, 170, 280, 0x8A, 0x3F, 0xFC, 0.42f},  // Violett unten rechts
-        {330, 190, 200, 0x10, 0xC8, 0xB0, 0.25f},  // Türkis unten Mitte
-    };
-    for (int y = 0; y < SCR_H; y++) {
-        // Grundverlauf: fast schwarz, unten minimal heller
-        float t = (float)y / SCR_H;
-        float br = 6 + 6 * t, bgc = 7 + 7 * t, bb = 11 + 10 * t;
-        for (int x = 0; x < SCR_W; x++) {
-            float r = br, g = bgc, b = bb;
-            for (const Blob &bl : blobs) {
-                float dx = x - bl.x, dy = (y - bl.y) * 1.6f;
-                float d2 = (dx * dx + dy * dy) / (bl.r * bl.r);
-                if (d2 >= 1.0f) continue;
-                float f = (1.0f - d2);
-                f = f * f * bl.strength;  // weicher Abfall
-                r += bl.cr * f;
-                g += bl.cg * f;
-                b += bl.cb * f;
-            }
-            // leichtes Dithering gegen Farbstufen
-            float n = ((x * 7 + y * 13) & 3) * 0.6f;
-            s_backdropBuf[y * SCR_W + x] = lv_color_make((uint8_t)min(255.0f, r + n), (uint8_t)min(255.0f, g + n),
-                                                         (uint8_t)min(255.0f, b + n));
-        }
-    }
+// Vorgefertigte Hintergründe (Verlauf + weiche Farbflecken). Muss zur Web-App passen (BG_PRESETS).
+static const BackdropPreset BACKDROPS[] = {
+    {"aurora",   {6, 7, 11},  {12, 14, 21}, {{90, 10, 260, 0x2B, 0x59, 0xF0, 0.45f}, {560, 170, 280, 0x8A, 0x3F, 0xFC, 0.42f}, {330, 190, 200, 0x10, 0xC8, 0xB0, 0.25f}}, 3},
+    {"midnight", {4, 6, 12},  {10, 14, 28}, {{120, 0, 300, 0x1E, 0x3A, 0x8A, 0.35f}, {540, 180, 260, 0x24, 0x2E, 0x6B, 0.30f}, {0, 0, 1, 0, 0, 0, 0}}, 2},
+    {"graphite", {10, 10, 12}, {22, 22, 26}, {{320, 0, 340, 0x55, 0x58, 0x60, 0.22f}, {0, 0, 1, 0, 0, 0, 0}, {0, 0, 1, 0, 0, 0, 0}}, 1},
+    {"ocean",    {3, 10, 14}, {6, 22, 30},  {{100, 180, 280, 0x06, 0xB6, 0xD4, 0.30f}, {520, 0, 260, 0x25, 0x63, 0xEB, 0.35f}, {0, 0, 1, 0, 0, 0, 0}}, 2},
+    {"sunset",   {14, 6, 10}, {24, 10, 14}, {{80, 180, 260, 0xF9, 0x73, 0x16, 0.32f}, {560, 0, 280, 0xDB, 0x27, 0x77, 0.34f}, {330, 90, 200, 0x7C, 0x3A, 0xED, 0.18f}}, 3},
+    {"ember",    {12, 9, 8},  {22, 13, 9},  {{560, 140, 330, 0x8A, 0x45, 0x18, 0.42f}, {60, 0, 240, 0x4A, 0x2A, 0x16, 0.30f}, {0, 0, 1, 0, 0, 0, 0}}, 2},
+    {"forest",   {4, 10, 8},  {8, 20, 14},  {{140, 0, 280, 0x16, 0xA3, 0x4A, 0.30f}, {520, 180, 260, 0x0D, 0x94, 0x88, 0.28f}, {0, 0, 1, 0, 0, 0, 0}}, 2},
+};
+
+static String s_backdropKind;  // was gerade im Puffer liegt
+
+static bool ensureBackdropBuffer() {
+    if (!s_backdropBuf) s_backdropBuf = (lv_color_t *)ps_malloc(sizeof(lv_color_t) * SCR_W * SCR_H);
+    if (!s_backdropBuf) return false;
     s_backdropDsc.header.always_zero = 0;
     s_backdropDsc.header.w = SCR_W;
     s_backdropDsc.header.h = SCR_H;
     s_backdropDsc.header.cf = LV_IMG_CF_TRUE_COLOR;
     s_backdropDsc.data_size = sizeof(lv_color_t) * SCR_W * SCR_H;
     s_backdropDsc.data = (const uint8_t *)s_backdropBuf;
+    return true;
+}
+
+static bool renderPreset(const BackdropPreset &pr) {
+    for (int y = 0; y < SCR_H; y++) {
+        float t = (float)y / SCR_H;
+        float br = pr.top[0] + (pr.bottom[0] - pr.top[0]) * t;
+        float bgc = pr.top[1] + (pr.bottom[1] - pr.top[1]) * t;
+        float bb = pr.top[2] + (pr.bottom[2] - pr.top[2]) * t;
+        for (int x = 0; x < SCR_W; x++) {
+            float r = br, g = bgc, b = bb;
+            for (int i = 0; i < pr.nblobs; i++) {
+                const Blob &bl = pr.blobs[i];
+                float dx = x - bl.x, dy = (y - bl.y) * 1.6f;
+                float d2 = (dx * dx + dy * dy) / (bl.r * bl.r);
+                if (d2 >= 1.0f) continue;
+                float f = (1.0f - d2);
+                f = f * f * bl.strength;
+                r += bl.cr * f;
+                g += bl.cg * f;
+                b += bl.cb * f;
+            }
+            float n = ((x * 7 + y * 13) & 3) * 0.6f;  // leichtes Dithering gegen Farbstufen
+            s_backdropBuf[y * SCR_W + x] = lv_color_make((uint8_t)min(255.0f, r + n), (uint8_t)min(255.0f, g + n),
+                                                         (uint8_t)min(255.0f, b + n));
+        }
+    }
+    return true;
+}
+
+// Eigenes Bild: /bg.bin, 640x180 Pixel RGB565 (Little Endian), von der Web-App vorbereitet
+static bool renderImage() {
+    File f = LittleFS.open("/bg.bin", "r");
+    if (!f || f.size() != (size_t)SCR_W * SCR_H * 2) return false;
+    static uint8_t line[SCR_W * 2];
+    for (int y = 0; y < SCR_H; y++) {
+        if (f.read(line, sizeof(line)) != sizeof(line)) { f.close(); return false; }
+        for (int x = 0; x < SCR_W; x++) {
+            uint16_t v = line[x * 2] | (line[x * 2 + 1] << 8);
+            uint8_t r = (v >> 11) & 0x1F, g = (v >> 5) & 0x3F, b = v & 0x1F;
+            s_backdropBuf[y * SCR_W + x] = lv_color_make((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2));
+        }
+    }
+    f.close();
+    return true;
+}
+
+// Liefert true, wenn ein Hintergrundbild aktiv ist
+static bool renderBackdrop(const String &kindIn) {
+    String kind = kindIn;
+    if (kind == "black") return false;
+    if (!ensureBackdropBuffer()) return false;
+    if (kind == s_backdropKind && kind != "image") return true;
+    bool ok = false;
+    if (kind == "image") ok = renderImage();
+    if (!ok) {
+        if (kind == "image") kind = "aurora";  // Bild fehlt -> Standard
+        for (const BackdropPreset &pr : BACKDROPS) {
+            if (kind == pr.name) { ok = renderPreset(pr); break; }
+        }
+        if (!ok) ok = renderPreset(BACKDROPS[0]);
+    }
+    s_backdropKind = kind;
+    return ok;
 }
 
 static void styleGlass(lv_obj_t *o, lv_color_t c, int w, int h) {
@@ -148,8 +199,9 @@ static void styleGlass(lv_obj_t *o, lv_color_t c, int w, int h) {
 // Skins
 // ---------------------------------------------------------------------------
 enum Skin { SKIN_MINIMAL, SKIN_SOFT, SKIN_BOLD, SKIN_MONO, SKIN_GLASS, SKIN_FLAT,
-            SKIN_FROST, SKIN_FROST_TINT, SKIN_FROST_LIGHT, SKIN_FROST_DARK };
+            SKIN_FROST, SKIN_FROST_TINT, SKIN_FROST_LIGHT, SKIN_FROST_DARK, SKIN_DASH };
 static bool skinHasBackdrop(int s) { return s == SKIN_GLASS || s >= SKIN_FROST; }
+static const char *skinDefaultBackdrop(int s) { return s == SKIN_DASH ? "ember" : "aurora"; }
 
 static Skin currentSkin() {
     const String &t = g_config.theme;
@@ -161,6 +213,7 @@ static Skin currentSkin() {
     if (t == "frost-tint") return SKIN_FROST_TINT;
     if (t == "frost-light") return SKIN_FROST_LIGHT;
     if (t == "frost-dark") return SKIN_FROST_DARK;
+    if (t == "dash") return SKIN_DASH;
     if (t == "flat") return SKIN_FLAT;
     return SKIN_MINIMAL;
 }
@@ -284,6 +337,22 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
             }
             break;
         }
+        case SKIN_DASH: {  // Dashboard-Karten wie in Home Assistant (Mushroom-Stil)
+            lv_obj_set_style_bg_color(o, hex(0x1C1C1F), 0);
+            lv_obj_set_style_bg_grad_color(o, hex(0x111113), 0);
+            lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
+            lv_obj_set_style_bg_opa(o, 225, 0);
+            lv_obj_set_style_bg_color(o, lv_color_mix(acc, hex(0x1C1C1F), 40), LV_STATE_PRESSED);
+            lv_obj_set_style_border_width(o, 1, 0);
+            lv_color_t bc = lv_color_mix(acc, hex(0x2A2A2E), 50);
+            lv_obj_set_style_border_color(o, bc, 0);
+            lv_obj_set_style_border_color(o, acc, LV_STATE_PRESSED);
+            lv_obj_set_style_radius(o, 14, 0);
+            edge = 0xFF000000u | (lv_color_to32(bc) & 0xFFFFFF);
+            iconColor = acc;
+            labelColor = hex(0xF2F2F3);
+            break;
+        }
         case SKIN_FLAT:
         default:
             lv_obj_set_style_bg_color(o, base, 0);
@@ -299,6 +368,43 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
     }
     lv_obj_set_user_data(o, (void *)(uintptr_t)edge);
     lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);
+
+    if (skin == SKIN_DASH) {
+        // Runde Icon-Plakette oben links, Beschriftung unten links
+        const DeckIcon *dic = b.icon.length() ? deckIconFind(b.icon.c_str()) : nullptr;
+        bool lab = b.label.length() > 0;
+        int bs = lab ? min(36, h / 2) : min(56, min(w, h) - 16);
+        if (dic) {
+            lv_obj_t *badge = lv_obj_create(o);
+            lv_obj_remove_style_all(badge);
+            lv_obj_clear_flag(badge, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_set_size(badge, bs, bs);
+            lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, 0);
+            lv_obj_set_style_bg_color(badge, acc, 0);
+            lv_obj_set_style_bg_opa(badge, 55, 0);
+            if (lab) lv_obj_set_pos(badge, 8, 8);
+            else lv_obj_center(badge);
+            lv_obj_t *ic = lv_label_create(badge);
+            lv_label_set_text(ic, dic->glyph);
+            lv_obj_set_style_text_font(ic, deckIconFont(dic, bs >= 50 ? 32 : 24), 0);
+            lv_obj_set_style_text_color(ic, acc, 0);
+            lv_obj_center(ic);
+        }
+        if (lab) {
+            lv_obj_t *lb = lv_label_create(o);
+            lv_label_set_text(lb, b.label.c_str());
+            lv_obj_set_style_text_font(lb, &font_de_14, 0);
+            lv_obj_set_style_text_color(lb, labelColor, 0);
+            lv_label_set_long_mode(lb, LV_LABEL_LONG_DOT);
+            lv_obj_set_width(lb, w - 18);
+            if (dic) lv_obj_align(lb, LV_ALIGN_BOTTOM_LEFT, 10, -8);
+            else lv_obj_align(lb, LV_ALIGN_LEFT_MID, 10, 0);
+            lv_obj_clear_flag(lb, LV_OBJ_FLAG_CLICKABLE);
+        }
+        lv_obj_add_event_cb(o, onButtonClicked, LV_EVENT_CLICKED, (void *)(uintptr_t)((page << 8) | idx));
+        s_btns[page].push_back(o);
+        return;
+    }
 
     lv_obj_set_flex_flow(o, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(o, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -444,15 +550,19 @@ void uiBuild() {
 
     lv_obj_t *scr = lv_scr_act();
     lv_obj_set_style_bg_color(scr, hex(0x000000), 0);
-    bool glassTheme = skinHasBackdrop(currentSkin());
-    if (glassTheme) renderBackdrop();
-    if (glassTheme && s_backdropBuf) {
+    // Hintergrund: "auto" = Glas-Skins mit Farbverlauf, alle anderen schwarz
+    String bgKind = g_config.background;
+    if (bgKind == "auto") bgKind = skinHasBackdrop(currentSkin()) ? skinDefaultBackdrop(currentSkin()) : "black";
+    bool glassTheme = renderBackdrop(bgKind);
+    if (glassTheme) {
         if (!s_backdrop) {
             s_backdrop = lv_img_create(scr);
             lv_img_set_src(s_backdrop, &s_backdropDsc);
             lv_obj_set_pos(s_backdrop, 0, 0);
             lv_obj_clear_flag(s_backdrop, LV_OBJ_FLAG_CLICKABLE);
         }
+        lv_img_cache_invalidate_src(&s_backdropDsc);
+        lv_obj_invalidate(s_backdrop);
         lv_obj_clear_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN);
         lv_obj_move_background(s_backdrop);
     } else if (s_backdrop) {
