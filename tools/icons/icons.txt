@@ -1,0 +1,28 @@
+# Tabler-Icons (https://tabler.io/icons), die ins Gerät eingebaut werden.
+# Eine Zeile pro Icon-Name. Danach: python3 tools/icons/gen_icons.py
+# --- Audio / Medien
+volume volume-2 volume-3 volume-off microphone microphone-off microphone-2 headphones headphones-off headset speakerphone music music-off
+player-play player-pause player-stop player-record player-skip-forward player-skip-back player-track-next player-track-prev player-eject repeat repeat-once arrows-shuffle
+playlist disc vinyl radio broadcast live-photo antenna-bars-5
+video video-off camera camera-off movie device-tv photo photo-video screenshot screen-share screen-share-off
+# --- Streaming / Szenen
+broadcast-off brand-twitch brand-youtube brand-discord brand-spotify brand-steam brand-teams brand-zoom brand-slack brand-whatsapp brand-telegram brand-chrome brand-firefox brand-edge brand-windows brand-apple brand-github brand-gitlab brand-vscode brand-figma brand-netflix brand-amazon brand-google brand-gmail brand-instagram brand-tiktok brand-x brand-reddit brand-linkedin brand-paypal brand-xbox brand-office brand-onedrive brand-notion brand-trello brand-docker brand-python brand-javascript brand-openai
+layout-grid layout-dashboard layers-subtract stack-2 transition-right switch-horizontal
+# --- System / Windows
+home settings adjustments adjustments-horizontal power lock lock-open logout login user users user-circle shield shield-lock key fingerprint
+device-desktop device-laptop device-mobile keyboard mouse cpu device-floppy database server cloud cloud-upload cloud-download wifi wifi-off bluetooth bluetooth-off usb plug battery battery-charging
+folder folder-open folders file file-text files file-plus file-download file-upload clipboard clipboard-copy clipboard-check copy cut trash trash-x archive download upload search zoom-in zoom-out
+terminal terminal-2 code app-window apps window-maximize window-minimize layout-sidebar subtask list-check checklist list calculator calendar clock alarm stopwatch hourglass bell bell-off
+refresh reload rotate rotate-clockwise arrow-back-up arrow-forward-up arrow-left arrow-right arrow-up arrow-down chevron-left chevron-right chevron-up chevron-down chevrons-left chevrons-right external-link link unlink
+plus minus x check eye eye-off menu-2 backspace corner-down-left circle-check circle-x alert-triangle info-circle help-circle ban bolt flame
+# --- Kommunikation
+mail mail-opened send message message-circle messages phone phone-off phone-call video-plus at hash
+# --- Smart Home
+bulb bulb-off lamp lamp-2 sun moon sun-moon temperature temperature-snow snowflake droplet wind air-conditioning propeller door door-enter door-exit window home-2 home-bolt plug-connected plug-x sofa bed coffee cooker wash-machine robot-face vacuum-cleaner leaf plant
+# --- Werkzeuge / Kreativ
+pencil edit brush palette color-picker typography text-size bold italic underline highlight eraser ruler crop scissors wand sparkles
+# --- Sonstiges
+star heart thumb-up thumb-down flag bookmark tag gift trophy rocket target map-pin world compass globe shopping-cart credit-card wallet coin
+device-gamepad device-gamepad-2 ghost sword skull dice-5 puzzle
+mood-smile mood-happy mood-sad mood-crazy-happy confetti cake beer glass-full pizza
+circle square triangle hexagon number-1 number-2 number-3 number-4 number-5 number-6 number-7 number-8 number-9 number-0

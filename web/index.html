@@ -32,7 +32,27 @@ section{display:none}section.on{display:block}
 .deck{background:#000;border-radius:16px;position:relative;aspect-ratio:640/180;max-width:100%;border:6px solid #23272f;container-type:inline-size}
 .deck .key{position:absolute}
 .key{border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;text-align:center;font-size:12px;line-height:1.15;white-space:pre-line;overflow:hidden;border:2px solid transparent;user-select:none;padding:3px;background-image:linear-gradient(rgba(255,255,255,.06),rgba(0,0,0,.25))}
-.key .ic{font-size:clamp(11px,3.2cqw,20px);line-height:1}
+.key .ic{line-height:1}
+@font-face{font-family:"tabler-o";src:url("https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.50.0/dist/fonts/tabler-icons.woff2") format("woff2");font-display:block}
+@font-face{font-family:"tabler-f";src:url("https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.50.0/dist/fonts/tabler-icons-filled.woff2") format("woff2");font-display:block}
+.ti-o{font-family:"tabler-o";font-style:normal;line-height:1;-webkit-font-smoothing:antialiased}
+.ti-f{font-family:"tabler-f";font-style:normal;line-height:1;-webkit-font-smoothing:antialiased}
+.iconbtn{display:flex;align-items:center;gap:10px;width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit;text-align:left;min-height:38px}
+.iconbtn i{font-size:22px}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:30;padding:20px}
+.modal.on{display:flex}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:min(900px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden}
+.modal .head{display:flex;gap:10px;padding:14px;border-bottom:1px solid var(--line);align-items:center;flex-wrap:wrap}
+.modal .head input[type=search]{flex:1;min-width:180px}
+.igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px;padding:14px;overflow:auto}
+.igrid button{background:var(--panel2);border:1px solid transparent;color:var(--text);border-radius:10px;padding:10px 4px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;font:inherit}
+.igrid button:hover{border-color:var(--accent)}
+.igrid button.on{border-color:var(--accent);background:#14324a}
+.igrid button i{font-size:28px}
+.igrid button span{font-size:10px;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seg{display:flex;background:var(--panel2);border-radius:8px;padding:3px;gap:3px}
+.seg button{background:none;border:0;color:var(--muted);padding:6px 12px;border-radius:6px;cursor:pointer;font:inherit}
+.seg button.on{background:var(--panel);color:var(--text)}
 .key.empty{background:#0e1014!important;border:1px dashed #2a303b;color:#3a404b;background-image:none}
 .key.sel{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .key.drag{opacity:.4}
@@ -125,7 +145,7 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
         <label>Beschriftung (Enter = neue Zeile)</label>
         <textarea id="edLabel" style="min-height:44px;font-family:inherit"></textarea>
         <div class="row">
-          <div><label>Symbol</label><select id="edIcon"></select></div>
+          <div><label>Symbol</label><input type="hidden" id="edIcon"><button class="iconbtn" id="edIconBtn" type="button"></button></div>
           <div><label>Hintergrund</label><input type="color" id="edBg"></div>
           <div><label>Schrift</label><input type="color" id="edFg"></div>
         </div>
@@ -255,10 +275,27 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
 </main>
 
 <div class="savebar" id="savebar"><div class="msg" id="saveMsg">Alle Änderungen gespeichert</div><button class="btn primary" id="saveBtn">Aufs Gerät speichern</button></div>
+<div class="modal" id="iconModal">
+  <div class="box">
+    <div class="head">
+      <input type="search" id="iconSearch" placeholder="Symbol suchen – z. B. licht, mikro, play, discord …">
+      <div class="seg"><button id="segO" class="on">Linie</button><button id="segF">Gefüllt</button></div>
+      <button class="btn" id="iconNone">Kein Symbol</button>
+      <button class="btn" id="iconClose">✕</button>
+    </div>
+    <div class="igrid" id="iconGrid"></div>
+    <div class="hint" style="padding:0 14px 12px">Icons: <a href="https://tabler.io/icons" target="_blank" style="color:var(--accent)">Tabler Icons</a> (MIT)</div>
+  </div>
+</div>
 <div id="toast"></div>
 
+<script src="icons.js"></script>
 <script>
-const ICONS={audio:"🎵",video:"🎬",list:"☰",ok:"✔",close:"✖",power:"⏻",settings:"⚙",home:"⌂",download:"⬇",drive:"🖴",refresh:"↻",mute:"🔇",volume_mid:"🔉",volume_max:"🔊",image:"🖼",tint:"💧",prev:"⏮",play:"▶",pause:"⏸",stop:"⏹",next:"⏭",eject:"⏏",left:"◀",right:"▶",plus:"＋",minus:"－",eye_open:"👁",eye_close:"🙈",warning:"⚠",shuffle:"🔀",up:"▲",down:"▼",loop:"🔁",directory:"📁",upload:"⬆",call:"📞",cut:"✂",copy:"⧉",save:"💾",bars:"≡",envelope:"✉",charge:"⚡",paste:"📋",bell:"🔔",keyboard:"⌨",gps:"📍",file:"📄",wifi:"📶",battery:"🔋",usb:"🔌",bluetooth:"ᛒ",trash:"🗑",edit:"✎",backspace:"⌫",sd_card:"💳",new_line:"↵"};
+const ICONS_OLD={audio:"🎵",video:"🎬",list:"☰",ok:"✔",close:"✖",power:"⏻",settings:"⚙",home:"⌂",download:"⬇",drive:"🖴",refresh:"↻",mute:"🔇",volume_mid:"🔉",volume_max:"🔊",image:"🖼",tint:"💧",prev:"⏮",play:"▶",pause:"⏸",stop:"⏹",next:"⏭",eject:"⏏",left:"◀",right:"▶",plus:"＋",minus:"－",eye_open:"👁",eye_close:"🙈",warning:"⚠",shuffle:"🔀",up:"▲",down:"▼",loop:"🔁",directory:"📁",upload:"⬆",call:"📞",cut:"✂",copy:"⧉",save:"💾",bars:"≡",envelope:"✉",charge:"⚡",paste:"📋",bell:"🔔",keyboard:"⌨",gps:"📍",file:"📄",wifi:"📶",battery:"🔋",usb:"🔌",bluetooth:"ᛒ",trash:"🗑",edit:"✎",backspace:"⌫",sd_card:"💳",new_line:"↵"};
+const ICON_ALIAS={audio:"music",ok:"check",close:"x",drive:"database",refresh:"arrow-forward-up",mute:"volume-off",volume_mid:"volume-2",volume_max:"volume",image:"screenshot",tint:"droplet",prev:"player-track-prev",play:"player-play",pause:"player-pause",stop:"player-stop",next:"player-track-next",eject:"player-eject",left:"arrow-left",right:"arrow-right",eye_open:"eye",eye_close:"eye-off",warning:"alert-triangle",shuffle:"switch-horizontal",up:"arrow-up",down:"arrow-down",loop:"arrow-back-up",directory:"folder",call:"phone",save:"device-floppy",bars:"menu-2",envelope:"mail",charge:"bolt",paste:"clipboard",gps:"map-pin",edit:"pencil",sd_card:"device-floppy",new_line:"corner-down-left"};
+const ICON_DE={laut:"volume",lautstärke:"volume",ton:"volume",stumm:"volume-off",mikro:"microphone",mikrofon:"microphone",kopfhörer:"headphones",musik:"music",abspielen:"player-play",pause:"player-pause",weiter:"player-track-next",zurück:"player-track-prev",kamera:"camera",bild:"photo",licht:"bulb|lamp|sun",lampe:"lamp",heizung:"temperature|flame",temperatur:"temperature",tür:"door",fenster:"window",haus:"home",ordner:"folder",datei:"file",einstellungen:"settings",schloss:"lock",sperren:"lock",suche:"search",rechner:"calculator",kalender:"calendar",uhr:"clock",glocke:"bell",stern:"star",herz:"heart",pfeil:"arrow",löschen:"trash",müll:"trash",kopieren:"copy",einfügen:"clipboard",speichern:"device-floppy",telefon:"phone",nachricht:"message",chat:"message",spiel:"device-gamepad",controller:"device-gamepad",strom:"bolt",steckdose:"plug",sonne:"sun",mond:"moon",wasser:"droplet",tastatur:"keyboard",maus:"mouse",bildschirm:"device-desktop",aufnahme:"player-record",stream:"broadcast",live:"broadcast",szene:"layout-grid",pc:"device-desktop",computer:"device-desktop",handy:"device-mobile",ventilator:"propeller",lüfter:"propeller",staubsauger:"vacuum-cleaner",waschmaschine:"wash-machine",kaffee:"coffee",bett:"bed",sofa:"sofa",pflanze:"plant",einkauf:"shopping-cart",geld:"coin",welt:"world",zahl:"number",rakete:"rocket",pinsel:"brush",farbe:"palette",stift:"pencil",schere:"scissors"};
+function iconName(n){return n?(ICON_ALIAS[n]||n):''}
+function iconEl(n,cls){n=iconName(n);const d=ICON_CP[n];const i=document.createElement('i');if(!d)return null;i.className=(d[1]==='f'?'ti-f':'ti-o')+(cls?' '+cls:'');i.textContent=String.fromCodePoint(d[0]);return i}
 const MEDIA_LABELS={VOL_UP:"Lauter",VOL_DOWN:"Leiser",MUTE:"Stumm",PLAY_PAUSE:"Play/Pause",NEXT:"Nächster Titel",PREV:"Vorheriger Titel",STOP:"Stopp",BRIGHT_UP:"Bildschirm heller",BRIGHT_DOWN:"Bildschirm dunkler",CALCULATOR:"Rechner",BROWSER:"Browser",MAIL:"Mail",MY_COMPUTER:"Arbeitsplatz",WWW_HOME:"Browser: Start",WWW_BACK:"Browser: Zurück",WWW_FORWARD:"Browser: Vor",WWW_REFRESH:"Browser: Neu laden",WWW_SEARCH:"Browser: Suche"};
 const RUN_MAX=259;
 let link=null,cfg=null,info=null,page=0,sel=-1,dirty=false,recording=false,dragFrom=-1,clip=null;
@@ -269,7 +306,7 @@ function toast(msg,ok=true){const t=$('toast');t.textContent=msg;t.style.backgro
 function setDirty(d=true){dirty=d;$('saveMsg').textContent=d?'Ungespeicherte Änderungen':'Alle Änderungen gespeichert';$('saveMsg').classList.toggle('dirty',d)}
 function blank(){return {label:"",icon:"",bg:"#2A2F3A",fg:"#FFFFFF",type:"none",value:""}}
 function n(){return cfg.cols*cfg.rows}
-function normalize(){cfg.pages.forEach(p=>{while(p.buttons.length<n())p.buttons.push(blank());p.buttons.length=n()})}
+function normalize(){cfg.pages.forEach(p=>{p.buttons.forEach(b=>{if(b&&b.icon)b.icon=iconName(b.icon)});while(p.buttons.length<n())p.buttons.push(blank());p.buttons.length=n()})}
 function showTab(id){document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x.dataset.tab===id));document.querySelectorAll('section').forEach(s=>s.classList.toggle('on',s.id===id))}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{if(!b.disabled)showTab(b.dataset.tab)});
 
@@ -319,7 +356,7 @@ class DemoLink{
   constructor(){this.cfg=JSON.parse(JSON.stringify(DEMO_CFG));this.demo=true}
   async open(){}
   async send(cmd,extra){await new Promise(r=>setTimeout(r,80));
-    if(cmd==='hello'||cmd==='ping')return {ok:true,version:'demo',icons:Object.keys(ICONS),media:Object.keys(MEDIA_LABELS)};
+    if(cmd==='hello'||cmd==='ping')return {ok:true,version:'demo',icons:Object.keys(ICON_CP),media:Object.keys(MEDIA_LABELS)};
     if(cmd==='get')return {ok:true,config:JSON.parse(JSON.stringify(this.cfg))};
     if(cmd==='set'){this.cfg=JSON.parse(JSON.stringify(extra.config));return {ok:true}}
     if(cmd==='reset'){this.cfg=JSON.parse(JSON.stringify(DEMO_CFG));return {ok:true}}
@@ -418,7 +455,7 @@ $('installBtn').addEventListener('click',async e=>{
 // Editor
 // ------------------------------------------------------------------
 function fillLists(){
-  const ic=$('edIcon');ic.innerHTML='<option value="">— keins —</option>';(info.icons||[]).forEach(i=>{const o=document.createElement('option');o.value=i;o.textContent=(ICONS[i]||'')+'  '+i;ic.appendChild(o)});
+  deviceIcons=(info.icons||Object.keys(ICON_CP)).filter(n=>ICON_CP[n]);
   const md=$('edMedia');md.innerHTML='';(info.media||[]).forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=MEDIA_LABELS[m]||m;md.appendChild(o)});
 }
 function renderPages(){
@@ -439,7 +476,7 @@ function renderDeck(){
     const k=document.createElement('div');const empty=b.type==='none'&&!b.label&&!b.icon;
     k.className='key'+(empty?' empty':'')+(i===sel?' sel':'');k.style.background=b.bg;k.style.color=b.fg;k.draggable=true;
     const r=Math.floor(i/cols),c=i%cols;k.style.left=pct(x0+c*(w+GAP),W);k.style.top=pct(y0+r*(h+GAP),H);k.style.width=pct(w,W);k.style.height=pct(h,H);k.style.fontSize='clamp(8px,1.9cqw,12px)';
-    if(b.icon&&ICONS[b.icon]){const s=document.createElement('div');s.className='ic';s.textContent=ICONS[b.icon];k.appendChild(s)}
+    const ie=b.icon?iconEl(b.icon,'ic'):null;if(ie){const room=Math.min(w,h)-(b.label?22:0);const px=room>=90?48:(room>=48?32:24);ie.style.fontSize=(px/W*100)+'cqw';k.appendChild(ie)}
     const l=document.createElement('div');l.textContent=b.label||(empty?'+':'');k.appendChild(l);
     k.onclick=()=>{sel=i;render()};
     k.ondragstart=()=>{dragFrom=i;k.classList.add('drag')};k.ondragend=()=>k.classList.remove('drag');
@@ -461,7 +498,7 @@ function updateLens(){
 function renderEditor(){
   if(sel<0){$('editor').style.display='none';return}
   const b=cfg.pages[page].buttons[sel];$('editor').style.display='block';$('edIdx').textContent=(sel+1)+' (Zeile '+(Math.floor(sel/cfg.cols)+1)+', Spalte '+(sel%cfg.cols+1)+')';
-  $('edLabel').value=b.label;$('edIcon').value=b.icon||'';$('edBg').value=b.bg.toLowerCase();$('edFg').value=b.fg.toLowerCase();$('edType').value=b.type;
+  $('edLabel').value=b.label;$('edIcon').value=iconName(b.icon||'');renderIconBtn();$('edBg').value=b.bg.toLowerCase();$('edFg').value=b.fg.toLowerCase();$('edType').value=b.type;
   const v=t=>b.type===t?b.value:'';
   $('edHotkey').value=v('hotkey');$('edMedia').value=v('media')||'VOL_UP';$('edText').value=v('text');$('edMacro').value=v('macro');$('edOpen').value=v('open');$('edOpenPreset').value='';
   $('edUrl').value=v('http');$('edMethod').value=b.method||'POST';$('edBody').value=b.body||'';$('edAuth').value=b.auth||'';$('edCt').value=b.contentType||'application/json';
@@ -482,6 +519,33 @@ function readEditor(){
   setDirty();renderDeck();updateLens();
 }
 ['edLabel','edIcon','edBg','edFg','edHotkey','edMedia','edText','edMacro','edOpen','edUrl','edMethod','edBody','edAuth','edCt','edPage'].forEach(id=>{$(id).addEventListener('input',readEditor);$(id).addEventListener('change',readEditor)});
+// ---------- Symbol-Auswahl ----------
+let deviceIcons=Object.keys(ICON_CP),pickFilled=false;
+function renderIconBtn(){const n=$('edIcon').value;const b=$('edIconBtn');b.innerHTML='';const e=n?iconEl(n):null;if(e)b.appendChild(e);const t=document.createElement('span');t.textContent=n||'— kein Symbol —';t.style.color=n?'':'var(--muted)';b.appendChild(t)}
+function renderIconGrid(){
+  const q=$('iconSearch').value.trim().toLowerCase();
+  const syn=Object.entries(ICON_DE).filter(([de])=>q&&de.startsWith(q)).flatMap(([,en])=>en.split("|"));
+  const cur=$('edIcon').value;const g=$('iconGrid');g.innerHTML='';let count=0;
+  deviceIcons.forEach(n=>{
+    const filled=n.endsWith('-filled');if(filled!==pickFilled)return;
+    const base=filled?n.slice(0,-7):n;
+    if(q&&!base.includes(q)&&!syn.some(x=>base.includes(x)))return;
+    const bt=document.createElement('button');bt.title=n;if(n===cur)bt.className='on';
+    bt.appendChild(iconEl(n));const sp=document.createElement('span');sp.textContent=base;bt.appendChild(sp);
+    bt.onclick=()=>{$('edIcon').value=n;closeIconPicker();renderIconBtn();readEditor()};
+    g.appendChild(bt);count++});
+  if(!count)g.innerHTML='<div class="hint" style="grid-column:1/-1">Nichts gefunden'+(pickFilled?' – evtl. gibt es das Symbol nur als „Linie“.':'')+'</div>';
+}
+function openIconPicker(){pickFilled=$('edIcon').value.endsWith('-filled');$('segO').classList.toggle('on',!pickFilled);$('segF').classList.toggle('on',pickFilled);$('iconSearch').value='';renderIconGrid();$('iconModal').classList.add('on');setTimeout(()=>$('iconSearch').focus(),50)}
+function closeIconPicker(){$('iconModal').classList.remove('on')}
+$('edIconBtn').onclick=openIconPicker;
+$('iconClose').onclick=closeIconPicker;
+$('iconModal').onclick=e=>{if(e.target===$('iconModal'))closeIconPicker()};
+$('iconNone').onclick=()=>{$('edIcon').value='';closeIconPicker();renderIconBtn();readEditor()};
+$('iconSearch').oninput=renderIconGrid;
+$('segO').onclick=()=>{pickFilled=false;$('segO').classList.add('on');$('segF').classList.remove('on');renderIconGrid()};
+$('segF').onclick=()=>{pickFilled=true;$('segF').classList.add('on');$('segO').classList.remove('on');renderIconGrid()};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeIconPicker()});
 $('edType').onchange=()=>{showFields($('edType').value);readEditor()};
 $('edOpenPreset').onchange=()=>{const v=$('edOpenPreset').value;if(!v)return;$('edOpen').value=v;const b=cfg.pages[page].buttons[sel];if(!b.label){$('edLabel').value=$('edOpenPreset').selectedOptions[0].textContent.replace(/ \(.*\)/,'')}readEditor();$('edOpen').focus()};
 $('edClear').onclick=()=>{cfg.pages[page].buttons[sel]=blank();setDirty();render()};

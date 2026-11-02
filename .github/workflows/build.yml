@@ -40,7 +40,7 @@ jobs:
       - name: Dateien zusammenstellen
         run: |
           mkdir -p site dist
-          cp web/index.html web/manifest.json site/
+          cp web/index.html web/manifest.json web/icons.js site/
           # Dateiname mit Commit-ID, damit Browser/CDN nie eine alte Firmware aus dem Cache liefern
           BIN="longdeck-${GITHUB_SHA::7}.bin"
           cp firmware/longdeck.bin "site/$BIN"

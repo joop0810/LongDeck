@@ -92,12 +92,16 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
     lv_obj_set_style_pad_row(o, 2, 0);
     lv_obj_set_style_pad_all(o, 4, 0);
 
-    const char *sym = deckIconSymbol(b.icon.c_str());
+    const DeckIcon *dic = deckIconFind(b.icon.c_str());
+    const char *sym = dic ? dic->glyph : nullptr;
     lv_color_t fg = hex(b.fg);
     if (sym) {
         lv_obj_t *ic = lv_label_create(o);
         lv_label_set_text(ic, sym);
-        lv_obj_set_style_text_font(ic, (b.label.length() && h < 70) ? &font_de_20 : &font_de_28, 0);
+        // Größe nach verfügbarem Platz: mit Beschriftung etwas kleiner
+        int room = min(w, h) - (b.label.length() ? 22 : 0);
+        int px = room >= 90 ? 48 : (room >= 48 ? 32 : 24);
+        lv_obj_set_style_text_font(ic, deckIconFont(dic, px), 0);
         lv_obj_set_style_text_color(ic, fg, 0);
         lv_obj_clear_flag(ic, LV_OBJ_FLAG_CLICKABLE);
     }

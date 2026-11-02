@@ -1,37 +1,56 @@
 #pragma once
 #include "lvgl.h"
 #include <string.h>
+#include "icons_gen.h"  // Tabler Icons, erzeugt von tools/icons/gen_icons.py
 
-// Eingebaute Symbole (FontAwesome-Auswahl aus LVGL). Name -> Zeichen.
-struct DeckIcon { const char *name; const char *symbol; };
+// Icon-Schriften (Outline / Filled) in drei Größen
+LV_FONT_DECLARE(icon_o_24);
+LV_FONT_DECLARE(icon_o_32);
+LV_FONT_DECLARE(icon_o_48);
+LV_FONT_DECLARE(icon_f_24);
+LV_FONT_DECLARE(icon_f_32);
+LV_FONT_DECLARE(icon_f_48);
 
-static const DeckIcon DECK_ICONS[] = {
-    {"audio", LV_SYMBOL_AUDIO}, {"video", LV_SYMBOL_VIDEO}, {"list", LV_SYMBOL_LIST},
-    {"ok", LV_SYMBOL_OK}, {"close", LV_SYMBOL_CLOSE}, {"power", LV_SYMBOL_POWER},
-    {"settings", LV_SYMBOL_SETTINGS}, {"home", LV_SYMBOL_HOME}, {"download", LV_SYMBOL_DOWNLOAD},
-    {"drive", LV_SYMBOL_DRIVE}, {"refresh", LV_SYMBOL_REFRESH}, {"mute", LV_SYMBOL_MUTE},
-    {"volume_mid", LV_SYMBOL_VOLUME_MID}, {"volume_max", LV_SYMBOL_VOLUME_MAX},
-    {"image", LV_SYMBOL_IMAGE}, {"tint", LV_SYMBOL_TINT}, {"prev", LV_SYMBOL_PREV},
-    {"play", LV_SYMBOL_PLAY}, {"pause", LV_SYMBOL_PAUSE}, {"stop", LV_SYMBOL_STOP},
-    {"next", LV_SYMBOL_NEXT}, {"eject", LV_SYMBOL_EJECT}, {"left", LV_SYMBOL_LEFT},
-    {"right", LV_SYMBOL_RIGHT}, {"plus", LV_SYMBOL_PLUS}, {"minus", LV_SYMBOL_MINUS},
-    {"eye_open", LV_SYMBOL_EYE_OPEN}, {"eye_close", LV_SYMBOL_EYE_CLOSE},
-    {"warning", LV_SYMBOL_WARNING}, {"shuffle", LV_SYMBOL_SHUFFLE}, {"up", LV_SYMBOL_UP},
-    {"down", LV_SYMBOL_DOWN}, {"loop", LV_SYMBOL_LOOP}, {"directory", LV_SYMBOL_DIRECTORY},
-    {"upload", LV_SYMBOL_UPLOAD}, {"call", LV_SYMBOL_CALL}, {"cut", LV_SYMBOL_CUT},
-    {"copy", LV_SYMBOL_COPY}, {"save", LV_SYMBOL_SAVE}, {"bars", LV_SYMBOL_BARS},
-    {"envelope", LV_SYMBOL_ENVELOPE}, {"charge", LV_SYMBOL_CHARGE}, {"paste", LV_SYMBOL_PASTE},
-    {"bell", LV_SYMBOL_BELL}, {"keyboard", LV_SYMBOL_KEYBOARD}, {"gps", LV_SYMBOL_GPS},
-    {"file", LV_SYMBOL_FILE}, {"wifi", LV_SYMBOL_WIFI}, {"battery", LV_SYMBOL_BATTERY_FULL},
-    {"usb", LV_SYMBOL_USB}, {"bluetooth", LV_SYMBOL_BLUETOOTH}, {"trash", LV_SYMBOL_TRASH},
-    {"edit", LV_SYMBOL_EDIT}, {"backspace", LV_SYMBOL_BACKSPACE}, {"sd_card", LV_SYMBOL_SD_CARD},
-    {"new_line", LV_SYMBOL_NEW_LINE},
+// Alte Symbolnamen (Version 1.0/1.1) -> Tabler-Namen, damit bestehende Belegungen weiter passen
+struct IconAlias { const char *from; const char *to; };
+static const IconAlias ICON_ALIASES[] = {
+    {"audio", "music"}, {"video", "video"}, {"list", "list"}, {"ok", "check"}, {"close", "x"},
+    {"power", "power"}, {"settings", "settings"}, {"home", "home"}, {"download", "download"},
+    {"drive", "database"}, {"refresh", "arrow-forward-up"}, {"mute", "volume-off"},
+    {"volume_mid", "volume-2"}, {"volume_max", "volume"}, {"image", "screenshot"}, {"tint", "droplet"},
+    {"prev", "player-track-prev"}, {"play", "player-play"}, {"pause", "player-pause"},
+    {"stop", "player-stop"}, {"next", "player-track-next"}, {"eject", "player-eject"},
+    {"left", "arrow-left"}, {"right", "arrow-right"}, {"plus", "plus"}, {"minus", "minus"},
+    {"eye_open", "eye"}, {"eye_close", "eye-off"}, {"warning", "alert-triangle"},
+    {"shuffle", "switch-horizontal"}, {"up", "arrow-up"}, {"down", "arrow-down"},
+    {"loop", "arrow-back-up"}, {"directory", "folder"}, {"upload", "upload"}, {"call", "phone"},
+    {"cut", "cut"}, {"copy", "copy"}, {"save", "device-floppy"}, {"bars", "menu-2"},
+    {"envelope", "mail"}, {"charge", "bolt"}, {"paste", "clipboard"}, {"bell", "bell"},
+    {"keyboard", "keyboard"}, {"gps", "map-pin"}, {"file", "file"}, {"wifi", "wifi"},
+    {"battery", "battery"}, {"usb", "usb"}, {"bluetooth", "bluetooth"}, {"trash", "trash"},
+    {"edit", "pencil"}, {"backspace", "backspace"}, {"sd_card", "device-floppy"}, {"new_line", "corner-down-left"},
 };
 
-static inline const char *deckIconSymbol(const char *name) {
+static inline const char *iconCanonicalName(const char *name) {
+    if (!name || !*name) return name;
+    for (const IconAlias &a : ICON_ALIASES) {
+        if (strcmp(a.from, name) == 0) return a.to;
+    }
+    return name;
+}
+
+static inline const DeckIcon *deckIconFind(const char *name) {
     if (!name || !*name) return nullptr;
-    for (const DeckIcon &i : DECK_ICONS) {
-        if (strcmp(i.name, name) == 0) return i.symbol;
+    name = iconCanonicalName(name);
+    for (size_t i = 0; i < DECK_ICON_COUNT; i++) {
+        if (strcmp(DECK_ICONS[i].name, name) == 0) return &DECK_ICONS[i];
     }
     return nullptr;
+}
+
+// px: gewünschte Größe (24, 32 oder 48)
+static inline const lv_font_t *deckIconFont(const DeckIcon *ic, int px) {
+    if (px >= 48) return ic->filled ? &icon_f_48 : &icon_o_48;
+    if (px >= 32) return ic->filled ? &icon_f_32 : &icon_o_32;
+    return ic->filled ? &icon_f_24 : &icon_o_24;
 }

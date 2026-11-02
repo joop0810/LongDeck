@@ -17,6 +17,7 @@ Nur USB – kein WLAN, keine Hintergrund-App. Das Board meldet sich am PC als ga
   - **Webhook / URL aufrufen** – z. B. Home-Assistant-Automationen
   - **Makro** – mehrere Schritte (`key:`, `text:`, `media:`, `open:`, `delay:`, `page:`)
   - **Seite wechseln**
+- **Über 450 moderne Icons** aus [Tabler Icons](https://tabler.io/icons) (Linie und Gefüllt), inkl. Marken-Logos wie Discord, Spotify, Twitch, Steam, Teams – mit Suche (auch auf Deutsch) in der Web-App
 - **Tastaturlayout Deutsch (QWERTZ) oder US** – damit `Z`, `Y`, `@`, `\`, `ä` usw. richtig ankommen
 - **Web-App**: Beschriftung, Symbol, Farben, Aktion, Drag & Drop, Kopieren/Einfügen, „Am PC testen“, Export/Import, Demo-Modus ohne Gerät
 - **Automatisches Dimmen**, Helligkeitsregler direkt am Gerät
@@ -104,6 +105,15 @@ web/
 | `{"id":4,"cmd":"press","page":0,"btn":3}` | löst eine Taste aus |
 | `reset` / `reboot` / `bootloader` / `ping` | |
 
+## Icons anpassen
+
+Welche Icons ins Gerät kommen, steht in `tools/icons/icons.txt` (Namen von [tabler.io/icons](https://tabler.io/icons)). Danach:
+
+```bash
+cd tools/icons && npm i @tabler/icons-webfont@3.50.0 lv_font_conv@1.5.2 && cd ../..
+python3 tools/icons/gen_icons.py
+```
+
 ## Lizenz
 
-MIT – siehe [LICENSE](LICENSE). LVGL steht unter MIT-Lizenz; Display- und Touch-Treiber stammen von LilyGO bzw. Hynitron.
+MIT – siehe [LICENSE](LICENSE). LVGL und Tabler Icons stehen unter MIT-Lizenz; Display- und Touch-Treiber stammen von LilyGO bzw. Hynitron.

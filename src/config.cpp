@@ -1,6 +1,7 @@
 #include "config.h"
 #include <LittleFS.h>
 #include "log.h"
+#include "icons.h"
 
 DeckConfig g_config;
 SemaphoreHandle_t g_configMutex = nullptr;
@@ -53,33 +54,33 @@ void configDefaults() {
     DeckPage p1;
     p1.name = "Start";
     p1.buttons = {
-        mk("Leiser", "volume_mid", 0x1F4E79, ACT_MEDIA, "VOL_DOWN"),
-        mk("Stumm", "mute", 0x7A1F2B, ACT_MEDIA, "MUTE"),
-        mk("Lauter", "volume_max", 0x1F4E79, ACT_MEDIA, "VOL_UP"),
-        mk("Zurück", "prev", 0x2E5E3A, ACT_MEDIA, "PREV"),
-        mk("Play", "play", 0x2E7D32, ACT_MEDIA, "PLAY_PAUSE"),
-        mk("Weiter", "next", 0x2E5E3A, ACT_MEDIA, "NEXT"),
+        mk("Leiser", "volume-2", 0x1F4E79, ACT_MEDIA, "VOL_DOWN"),
+        mk("Stumm", "volume-off", 0x7A1F2B, ACT_MEDIA, "MUTE"),
+        mk("Lauter", "volume", 0x1F4E79, ACT_MEDIA, "VOL_UP"),
+        mk("Zurück", "player-track-prev", 0x2E5E3A, ACT_MEDIA, "PREV"),
+        mk("Play", "player-play", 0x2E7D32, ACT_MEDIA, "PLAY_PAUSE"),
+        mk("Weiter", "player-track-next", 0x2E5E3A, ACT_MEDIA, "NEXT"),
         mk("Kopieren", "copy", 0x3A3F4B, ACT_HOTKEY, "CTRL+C"),
-        mk("Einfügen", "paste", 0x3A3F4B, ACT_HOTKEY, "CTRL+V"),
-        mk("Screenshot", "image", 0x5B3A7A, ACT_HOTKEY, "GUI+SHIFT+S"),
-        mk("Task-\nManager", "list", 0x6B4E16, ACT_HOTKEY, "CTRL+SHIFT+ESC"),
+        mk("Einfügen", "clipboard", 0x3A3F4B, ACT_HOTKEY, "CTRL+V"),
+        mk("Screenshot", "screenshot", 0x5B3A7A, ACT_HOTKEY, "GUI+SHIFT+S"),
+        mk("Task-\nManager", "list-check", 0x6B4E16, ACT_HOTKEY, "CTRL+SHIFT+ESC"),
         mk("Desktop", "home", 0x3A3F4B, ACT_HOTKEY, "GUI+D"),
         mk("Sperren", "power", 0x7A1F2B, ACT_HOTKEY, "GUI+L"),
     };
     DeckPage p2;
     p2.name = "Werkzeuge";
     p2.buttons = {
-        mk("Explorer", "directory", 0x6B4E16, ACT_HOTKEY, "GUI+E"),
-        mk("Editor", "edit", 0x3A3F4B, ACT_OPEN, "notepad"),
+        mk("Explorer", "folder", 0x6B4E16, ACT_HOTKEY, "GUI+E"),
+        mk("Editor", "pencil", 0x3A3F4B, ACT_OPEN, "notepad"),
         mk("Einstell.", "settings", 0x3A3F4B, ACT_HOTKEY, "GUI+I"),
-        mk("Rechner", "keyboard", 0x1F4E79, ACT_OPEN, "calc"),
-        mk("Gruß", "edit", 0x2E5E3A, ACT_TEXT, "Viele Grüße\n"),
-        mk("Mic aus", "mute", 0x7A1F2B, ACT_HOTKEY, "CTRL+SHIFT+M"),
-        mk("Rückgängig", "loop", 0x3A3F4B, ACT_HOTKEY, "CTRL+Z"),
-        mk("Wieder-\nholen", "refresh", 0x3A3F4B, ACT_HOTKEY, "CTRL+Y"),
-        mk("Speichern", "save", 0x1F4E79, ACT_HOTKEY, "CTRL+S"),
+        mk("Rechner", "calculator", 0x1F4E79, ACT_OPEN, "calc"),
+        mk("Gruß", "message", 0x2E5E3A, ACT_TEXT, "Viele Grüße\n"),
+        mk("Mic aus", "microphone-off", 0x7A1F2B, ACT_HOTKEY, "CTRL+SHIFT+M"),
+        mk("Rückgängig", "arrow-back-up", 0x3A3F4B, ACT_HOTKEY, "CTRL+Z"),
+        mk("Wieder-\nholen", "arrow-forward-up", 0x3A3F4B, ACT_HOTKEY, "CTRL+Y"),
+        mk("Speichern", "device-floppy", 0x1F4E79, ACT_HOTKEY, "CTRL+S"),
         mk("Neuer Tab", "plus", 0x3A3F4B, ACT_HOTKEY, "CTRL+T"),
-        mk("Alt+Tab", "shuffle", 0x3A3F4B, ACT_HOTKEY, "ALT+TAB"),
+        mk("Alt+Tab", "switch-horizontal", 0x3A3F4B, ACT_HOTKEY, "ALT+TAB"),
         mk("Start", "home", 0x2E7D32, ACT_PAGE, "1"),
     };
     g_config.pages.push_back(p1);
@@ -105,6 +106,9 @@ void configNormalize() {
     for (size_t i = 0; i < c.pages.size(); i++) {
         if (c.pages[i].name.length() == 0) c.pages[i].name = "Seite " + String(i + 1);
         c.pages[i].buttons.resize(n);
+        for (DeckButton &b : c.pages[i].buttons) {
+            if (b.icon.length()) b.icon = iconCanonicalName(b.icon.c_str());  // alte Symbolnamen umstellen
+        }
     }
 }
 
