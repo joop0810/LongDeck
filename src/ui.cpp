@@ -7,6 +7,11 @@
 #include "lvgl.h"
 #include <vector>
 
+// Schriften mit Umlauten, Sonderzeichen (Latin-1, €, „“) und LVGL-Symbolen (src/font_de_*.c)
+LV_FONT_DECLARE(font_de_14);
+LV_FONT_DECLARE(font_de_20);
+LV_FONT_DECLARE(font_de_28);
+
 extern void backlightSet(uint8_t level);  // main.cpp
 
 static const int SCR_W = 640;
@@ -92,7 +97,7 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
     if (sym) {
         lv_obj_t *ic = lv_label_create(o);
         lv_label_set_text(ic, sym);
-        lv_obj_set_style_text_font(ic, (b.label.length() && h < 70) ? &lv_font_montserrat_20 : &lv_font_montserrat_28, 0);
+        lv_obj_set_style_text_font(ic, (b.label.length() && h < 70) ? &font_de_20 : &font_de_28, 0);
         lv_obj_set_style_text_color(ic, fg, 0);
         lv_obj_clear_flag(ic, LV_OBJ_FLAG_CLICKABLE);
     }
@@ -100,7 +105,7 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
         lv_obj_t *lb = lv_label_create(o);
         lv_label_set_text(lb, b.label.c_str());
         bool big = !sym && b.label.length() <= 8 && b.label.indexOf('\n') < 0 && w >= 80;
-        lv_obj_set_style_text_font(lb, big ? &lv_font_montserrat_20 : &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(lb, big ? &font_de_20 : &font_de_14, 0);
         lv_obj_set_style_text_color(lb, fg, 0);
         lv_obj_set_style_text_align(lb, LV_TEXT_ALIGN_CENTER, 0);
         lv_label_set_long_mode(lb, LV_LABEL_LONG_WRAP);
@@ -150,23 +155,23 @@ static lv_obj_t *mkSmallBtn(lv_obj_t *parent, const char *text, int x, int y, lv
     lv_obj_set_style_shadow_width(b, 0, 0);
     lv_obj_t *l = lv_label_create(b);
     lv_label_set_text(l, text);
-    lv_obj_set_style_text_font(l, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(l, &font_de_14, 0);
     lv_obj_center(l);
     lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, nullptr);
     return b;
 }
 
 static void buildInfoTile(lv_obj_t *tile) {
-    lv_obj_t *t = mkLabel(tile, &lv_font_montserrat_28, 0xFFFFFF, 16, 12, 0);
+    lv_obj_t *t = mkLabel(tile, &font_de_28, 0xFFFFFF, 16, 12, 0);
     lv_label_set_text(t, LV_SYMBOL_KEYBOARD " LongDeck");
-    lv_obj_t *v = mkLabel(tile, &lv_font_montserrat_14, 0x8A90A0, 18, 48, 0);
+    lv_obj_t *v = mkLabel(tile, &font_de_14, 0x8A90A0, 18, 48, 0);
     lv_label_set_text(v, "Version " LONGDECK_VERSION);
 
-    s_infoUsb = mkLabel(tile, &lv_font_montserrat_14, 0xFFFFFF, 18, 78, 430);
-    s_infoEditor = mkLabel(tile, &lv_font_montserrat_14, 0x8A90A0, 18, 100, 430);
-    lv_obj_t *h1 = mkLabel(tile, &lv_font_montserrat_14, 0x8A90A0, 18, 130, 430);
+    s_infoUsb = mkLabel(tile, &font_de_14, 0xFFFFFF, 18, 78, 430);
+    s_infoEditor = mkLabel(tile, &font_de_14, 0x8A90A0, 18, 100, 430);
+    lv_obj_t *h1 = mkLabel(tile, &font_de_14, 0x8A90A0, 18, 130, 430);
     lv_label_set_text(h1, "Tasten belegen (Chrome/Edge):");
-    lv_obj_t *h2 = mkLabel(tile, &lv_font_montserrat_14, 0x5EC8FF, 18, 150, 440);
+    lv_obj_t *h2 = mkLabel(tile, &font_de_14, 0x5EC8FF, 18, 150, 440);
     lv_label_set_text(h2, "joop0810.github.io/LongDeck");
 
     mkSmallBtn(tile, LV_SYMBOL_REFRESH " Neustart", 472, 12, onRestartBtn);
@@ -182,7 +187,7 @@ static void buildInfoTile(lv_obj_t *tile) {
     lv_obj_add_event_cb(sl, onSlider, LV_EVENT_VALUE_CHANGED, nullptr);
     lv_obj_add_event_cb(sl, onSlider, LV_EVENT_RELEASED, nullptr);
     s_slider = sl;
-    lv_obj_t *bl = mkLabel(tile, &lv_font_montserrat_14, 0x8A90A0, 478, 100, 0);
+    lv_obj_t *bl = mkLabel(tile, &font_de_14, 0x8A90A0, 478, 100, 0);
     lv_label_set_text(bl, LV_SYMBOL_IMAGE " Helligkeit");
     uiUpdateInfo();
 }
@@ -194,7 +199,7 @@ void uiUpdateInfo() {
     if (usb == s_lastUsb && ed == s_lastEd) return;  // nur bei Änderung neu zeichnen
     s_lastUsb = usb;
     s_lastEd = ed;
-    lv_label_set_text(s_infoUsb, usb ? LV_SYMBOL_USB "  Mit PC verbunden - Tastatur bereit"
+    lv_label_set_text(s_infoUsb, usb ? LV_SYMBOL_USB "  Mit PC verbunden – Tastatur bereit"
                                      : LV_SYMBOL_USB "  Kein PC erkannt (nur Strom?)");
     lv_obj_set_style_text_color(s_infoUsb, usb ? hex(0x4ADE80) : hex(0xFFC857), 0);
     lv_label_set_text(s_infoEditor, ed ? LV_SYMBOL_EDIT "  Editor verbunden" : "");
@@ -218,6 +223,7 @@ void uiBuild() {
 
     lv_obj_t *scr = lv_scr_act();
     lv_obj_set_style_bg_color(scr, hex(0x000000), 0);
+    lv_obj_set_style_text_font(scr, &font_de_14, 0);
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
     xSemaphoreTakeRecursive(g_configMutex, portMAX_DELAY);
@@ -292,7 +298,7 @@ void uiToast(const char *msg, bool ok) {
         lv_obj_set_style_radius(s_toast, 10, 0);
         lv_obj_set_style_pad_hor(s_toast, 14, 0);
         lv_obj_set_style_pad_ver(s_toast, 8, 0);
-        lv_obj_set_style_text_font(s_toast, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(s_toast, &font_de_14, 0);
         lv_obj_set_style_text_color(s_toast, hex(0xFFFFFF), 0);
         lv_obj_align(s_toast, LV_ALIGN_TOP_MID, 0, 8);
     }
