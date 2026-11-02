@@ -338,7 +338,7 @@ async function attach(l){
     $('fwVer').textContent=l.demo?'':'Installierte Version: '+info.version;
     showTab('keys');
   }catch(e){
-    const msg=e.message==='Keine Antwort vom Gerät'?'Das Gerät antwortet nicht. Ist die LongDeck-Firmware installiert? Nach dem Flashen einmal RST drücken bzw. neu anstecken.':e.message;
+    const msg=e.message==='Keine Antwort vom Gerät'?'Das Gerät antwortet nicht – vermutlich läuft noch eine ältere Firmware (vor 1.1). Bitte im Reiter „Firmware“ neu installieren und danach RST drücken.':e.message;
     toast('Verbindung fehlgeschlagen: '+msg,false);await l.close();link=null;setConnected(false,'nicht verbunden')}
   finally{connecting=false}
 }
