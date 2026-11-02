@@ -8,7 +8,7 @@
 #define LD_MAX_COLS  8
 #define LD_MAX_ROWS  3
 
-#define LONGDECK_VERSION "1.7.0"
+#define LONGDECK_VERSION "1.8.0"
 
 // Aktionstypen einer Taste
 enum ActionType : uint8_t {
@@ -65,6 +65,7 @@ struct DeckConfig {
     uint8_t rows = 1;
     bool squareTiles = true;     // Kacheln nie höher als breit (Rand oben/unten statt langgezogen)
     String theme = "minimal";    // Skin: minimal, soft, bold, mono, glass, flat, frost*
+    uint16_t rotation = 0;       // 0 = quer, 90 = hochkant, 180 = quer gedreht, 270 = hochkant gedreht
     String background = "auto"; // auto, black, aurora, midnight, graphite, ocean, sunset, forest, image
     uint8_t brightness = 200;    // 10..255
     uint16_t dimAfter = 60;      // Sekunden bis Dimmen, 0 = nie

@@ -246,13 +246,14 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
       <div><label>Spalten (1–8)</label><input type="number" id="sCols" min="1" max="8"></div>
       <div><label>Zeilen (1–3)</label><input type="number" id="sRows" min="1" max="3"></div>
       <div><label>Skin</label><select id="sTheme"><option value="dash">Dashboard – Karten wie Home Assistant</option><option value="minimal">Minimal – schwarz, Icon in Farbe</option><option value="soft">Soft Color – zart getönt, gefüllte Icons</option><option value="bold">Bold – volle Farbe, nur Icon</option><option value="mono">Mono – weiß/grau, ganz clean</option><option value="frost">Milchglas – dezent, Icon in Farbe</option><option value="frost-tint">Milchglas getönt – leicht gefärbt, Icon weiß</option><option value="frost-light">Helles Glas – schwarze Icons</option><option value="frost-dark">Dunkles Glas – weiße Icons</option><option value="glass">Glas mit Glanz – leuchtend</option><option value="flat">Klassisch – farbige Kacheln</option></select></div>
+      <div><label>Ausrichtung</label><select id="sRot"><option value="0">Quer</option><option value="180">Quer – um 180° gedreht</option><option value="90">Hochkant</option><option value="270">Hochkant – um 180° gedreht</option></select></div>
       <div><label>Kachelform</label><select id="sSquare"><option value="1">Quadratisch – Rand oben/unten statt langgezogen</option><option value="0">Ganze Höhe ausfüllen</option></select></div>
       <div><label>Helligkeit</label><input type="range" id="sBright" min="10" max="255"></div>
       <div><label>Dimmen nach (Sekunden, 0 = nie)</label><input type="number" id="sDim" min="0" max="3600"></div>
       <div><label>Helligkeit gedimmt (0 = aus)</label><input type="range" id="sDimB" min="0" max="255"></div>
       <div><label>Gerätename (USB, nach Neustart)</label><input id="sName" maxlength="24"></div>
     </div>
-    <div class="hint">Ändert man Spalten/Zeilen, bleiben die Tasten an ihrer Position; überzählige fallen weg.</div>
+    <div class="hint">Ändert man Spalten/Zeilen, bleiben die Tasten an ihrer Position; überzählige fallen weg. Bei <b>Hochkant</b> wird das Raster mitgedreht – aus 1 Zeile × 5 werden 5 Tasten untereinander. Drehen geht auch direkt am Gerät (Status-Seite → „Drehen“).</div>
   </div>
   <div class="card">
     <h2>Hintergrund</h2>
@@ -407,7 +408,7 @@ class SerialLink{
 }
 
 // Demo ohne Gerät
-const DEMO_CFG={deviceName:"LongDeck",cols:5,rows:1,squareTiles:true,theme:"minimal",background:"auto",brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
+const DEMO_CFG={deviceName:"LongDeck",cols:5,rows:1,squareTiles:true,theme:"minimal",background:"auto",rotation:0,brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
  {name:"Medien",buttons:[["Leiser","volume-2","#3B82F6","media","VOL_DOWN"],["Stumm","volume-off","#EF4444","media","MUTE"],["Lauter","volume","#3B82F6","media","VOL_UP"],["Play","player-play","#22C55E","media","PLAY_PAUSE"],["Weiter","player-track-next","#22C55E","media","NEXT"]]},
  {name:"Arbeit",buttons:[["Kopieren","copy","#A1A1AA","hotkey","CTRL+C"],["Einfügen","clipboard","#A1A1AA","hotkey","CTRL+V"],["Screenshot","screenshot","#A855F7","hotkey","GUI+SHIFT+S"],["Mic aus","microphone-off","#EF4444","hotkey","CTRL+SHIFT+M"],["Sperren","lock","#F59E0B","hotkey","GUI+L"]]},
  {name:"Werkzeuge",buttons:[["Explorer","folder","#F59E0B","hotkey","GUI+E"],["Rechner","calculator","#3B82F6","open","calc"],["Editor","pencil","#A1A1AA","open","notepad"],["Task-Manager","list-check","#A855F7","hotkey","CTRL+SHIFT+ESC"],["Desktop","home","#22C55E","hotkey","GUI+D"]]}]};
@@ -528,7 +529,8 @@ function renderPages(){
 function renderDeck(){
   const d=$('deck');d.innerHTML='';const skin=cfg.theme||'minimal',glass=skin==='glass',frost=skin.startsWith('frost');d.classList.toggle('glass',glass||frost);d.dataset.skin=skin;d.style.background=deckBackground();
   // gleiche Aufteilung wie auf dem Gerät (640x180, ui.cpp)
-  const W=640,H=180,PAD=6,GAP=6,DOTS=12,cols=cfg.cols,rows=cfg.rows;
+  const portrait=isPortrait();d.style.aspectRatio=portrait?'180/640':'640/180';d.style.maxWidth=portrait?'230px':'100%';d.style.margin=portrait?'0 auto':'';
+  const W=portrait?180:640,H=portrait?640:180,PAD=6,GAP=6,DOTS=12,cols=portrait?cfg.rows:cfg.cols,rows=portrait?cfg.cols:cfg.rows;
   const w=Math.floor((W-2*PAD-(cols-1)*GAP)/cols),availH=H-PAD-DOTS;
   let h=Math.floor((availH-(rows-1)*GAP)/rows);if(cfg.squareTiles!==false&&h>w)h=w;
   const x0=Math.floor((W-(cols*w+(cols-1)*GAP))/2),y0=PAD+Math.floor((availH-(rows*h+(rows-1)*GAP))/2);
@@ -555,7 +557,7 @@ function renderDeck(){
       else if(skin==='mono'){k.style.background='#161618';k.dataset.ic='#f4f4f5';k.dataset.lb='#71717a'}
       else {k.style.background=b.bg}
       k.style.backgroundImage='none';if(i===sel)k.style.boxShadow='0 0 0 2px var(--accent)'}
-    const r=Math.floor(i/cols),c=i%cols;k.style.left=pct(x0+c*(w+GAP),W);k.style.top=pct(y0+r*(h+GAP),H);k.style.width=pct(w,W);k.style.height=pct(h,H);k.style.fontSize='clamp(8px,1.9cqw,12px)';
+    const r=Math.floor(i/cols),c=i%cols;k.style.left=pct(x0+c*(w+GAP),W);k.style.top=pct(y0+r*(h+GAP),H);k.style.width=pct(w,W);k.style.height=pct(h,H);k.style.fontSize=(13/W*100)+'cqw';
     let iname=b.icon;if(iname&&k.dataset.filled&&!iname.endsWith('-filled')&&ICON_CP[iconName(iname)+'-filled'])iname=iconName(iname)+'-filled';
     const ie=iname?iconEl(iname,'ic'):null;const showLb=!k.dataset.nolabel&&b.label;
     if(ie){const room=Math.min(w,h)-(showLb?22:0);let px=room>=90?48:(room>=48?32:24);if(skin==='bold'&&!showLb&&room>=70)px=48;ie.style.fontSize=(px/W*100)+'cqw';if(k.dataset.ic)ie.style.color=k.dataset.ic;k.appendChild(ie)}
@@ -687,12 +689,13 @@ $('edHotkey').addEventListener('keydown',e=>{if(!recording)return;e.preventDefau
   $('edHotkey').value=[...m,k].join('+');stopRec();readEditor()});
 
 // Einstellungen
-function renderSettings(){$('sCols').value=cfg.cols;$('sRows').value=cfg.rows;$('sBright').value=cfg.brightness;$('sDim').value=cfg.dimAfter;$('sDimB').value=cfg.dimBrightness;$('sName').value=cfg.deviceName;$('sLayout').value=cfg.layout;$('sDelay').value=cfg.typeDelay;$('sSquare').value=cfg.squareTiles===false?'0':'1';$('sTheme').value=cfg.theme||'minimal';$('sBg').value=cfg.background||'auto';$('bgImageBox').style.display=cfg.background==='image'?'block':'none'}
+function renderSettings(){$('sCols').value=cfg.cols;$('sRows').value=cfg.rows;$('sBright').value=cfg.brightness;$('sDim').value=cfg.dimAfter;$('sDimB').value=cfg.dimBrightness;$('sName').value=cfg.deviceName;$('sLayout').value=cfg.layout;$('sDelay').value=cfg.typeDelay;$('sSquare').value=cfg.squareTiles===false?'0':'1';$('sTheme').value=cfg.theme||'minimal';$('sBg').value=cfg.background||'auto';$('sRot').value=String(cfg.rotation||0);$('bgImageBox').style.display=cfg.background==='image'?'block':'none'}
 function resizeGrid(cols,rows){
   cols=Math.min(8,Math.max(1,cols|0));rows=Math.min(3,Math.max(1,rows|0));if(cols===cfg.cols&&rows===cfg.rows)return;
   cfg.pages.forEach(p=>{const old=p.buttons,nb=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)nb.push(r<cfg.rows&&c<cfg.cols?old[r*cfg.cols+c]:blank());p.buttons=nb});
   cfg.cols=cols;cfg.rows=rows;sel=-1;setDirty();render();
 }
+$('sRot').onchange=()=>{cfg.rotation=+$('sRot').value;sel=-1;setDirty();render()};
 $('sTheme').onchange=()=>{cfg.theme=$('sTheme').value;setDirty();renderDeck()};
 $('sSquare').onchange=()=>{cfg.squareTiles=$('sSquare').value==='1';setDirty();renderDeck()};
 $('sCols').onchange=()=>resizeGrid(+$('sCols').value,cfg.rows);$('sRows').onchange=()=>resizeGrid(cfg.cols,+$('sRows').value);
@@ -709,6 +712,10 @@ const BG_PRESETS={
  ember:{top:[12,9,8],bottom:[22,13,9],blobs:[[560,140,330,0x8A,0x45,0x18,.42],[60,0,240,0x4A,0x2A,0x16,.30]]},
  forest:{top:[4,10,8],bottom:[8,20,14],blobs:[[140,0,280,0x16,0xA3,0x4A,.30],[520,180,260,0x0D,0x94,0x88,.28]]}};
 const bgCache={};
+function isPortrait(){const r=cfg&&cfg.rotation||0;return r===90||r===270}
+// Querformat-Bild für Hochkant drehen (wie putPixel in ui.cpp)
+const rotCache={};
+function rotatedURL(url,cb){if(rotCache[url])return rotCache[url];const img=new Image();img.onload=()=>{const c=document.createElement('canvas');c.width=180;c.height=640;const x=c.getContext('2d');x.translate(180,0);x.rotate(Math.PI/2);x.drawImage(img,0,0,640,180);rotCache[url]=c.toDataURL();cb&&cb()};img.src=url;return null}
 function presetURL(name){
   if(bgCache[name])return bgCache[name];const pr=BG_PRESETS[name]||BG_PRESETS.aurora;
   const c=document.createElement('canvas');c.width=640;c.height=180;const ctx=c.getContext('2d');const im=ctx.createImageData(640,180);
@@ -719,8 +726,9 @@ function presetURL(name){
 const GLASS_SKINS=['glass','frost','frost-tint','frost-light','frost-dark','dash'];
 function effectiveBg(){let k=cfg.background||'auto';if(k==='auto')k=GLASS_SKINS.includes(cfg.theme||'minimal')?((cfg.theme==='dash')?'ember':'aurora'):'black';return k}
 function deckBackground(){const k=effectiveBg();if(k==='black')return '#000';
-  if(k==='image'){let u=null;try{u=localStorage.getItem('longdeck-bg')}catch(e){}return u?`center/cover url(${u})`:`center/cover url(${presetURL('aurora')})`}
-  return `center/cover url(${presetURL(k)})`}
+  let u=null;if(k==='image'){try{u=localStorage.getItem('longdeck-bg')}catch(e){}}if(!u)u=presetURL(k==='image'?'aurora':k);
+  if(isPortrait()){const r=rotatedURL(u,()=>renderDeck());if(!r)return '#000';u=r}
+  return `center/cover url(${u})`}
 let bgImg=null;
 function drawBg(){const c=$('bgCanvas'),ctx=c.getContext('2d');ctx.fillStyle='#000';ctx.fillRect(0,0,640,180);if(!bgImg)return;
   const blur=+$('bgBlur').value,dim=+$('bgDim').value/100;const sc=Math.max(640/bgImg.width,180/bgImg.height),w=bgImg.width*sc,h=bgImg.height*sc;

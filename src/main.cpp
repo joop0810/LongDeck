@@ -82,6 +82,16 @@ static void touchRead(lv_indev_drv_t *, lv_indev_data_t *data) {
     xSemaphoreGive(s_touchMutex);
 }
 
+// Bildschirm drehen: 0 = quer (Standard), 90 = hochkant, 180 = quer gedreht, 270 = hochkant gedreht
+static lv_disp_drv_t *s_dispDrv = nullptr;
+static uint16_t s_rotation = 0xFFFF;
+static void displayApplyRotation(uint16_t deg) {
+    if (!s_dispDrv || deg == s_rotation) return;
+    static const lv_disp_rot_t MAP[4] = {LV_DISP_ROT_90, LV_DISP_ROT_180, LV_DISP_ROT_270, LV_DISP_ROT_NONE};
+    lv_disp_set_rotation(lv_disp_get_default(), MAP[(deg / 90) % 4]);
+    s_rotation = deg;
+}
+
 static void lvglBegin() {
     lv_init();
     size_t px = EXAMPLE_LCD_H_RES * EXAMPLE_LCD_V_RES;
@@ -105,6 +115,7 @@ static void lvglBegin() {
     dispDrv.rotated = LV_DISP_ROT_90;
     dispDrv.full_refresh = 1;         // vom Treiber vorausgesetzt
     lv_disp_drv_register(&dispDrv);
+    s_dispDrv = &dispDrv;
 
     static lv_indev_drv_t indevDrv;
     lv_indev_drv_init(&indevDrv);
@@ -130,6 +141,7 @@ void setup() {
 
     actionsBegin();
     protocolBegin();
+    displayApplyRotation(g_config.rotation);
     uiBuild();
     lv_timer_handler();
     backlightSet(g_config.brightness);
@@ -146,6 +158,7 @@ void loop() {
 
     if (g_configChanged) {
         g_configChanged = false;
+        displayApplyRotation(g_config.rotation);
         uiBuild();
         activity();
         backlightSet(g_config.brightness);

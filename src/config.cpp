@@ -93,6 +93,7 @@ void configNormalize() {
     if (c.layout != "de" && c.layout != "us") c.layout = "de";
     if (c.theme != "minimal" && c.theme != "soft" && c.theme != "bold" && c.theme != "mono" && c.theme != "glass" && c.theme != "flat" && !c.theme.startsWith("frost") && c.theme != "dash") c.theme = "minimal";
     if (c.background.length() == 0) c.background = "auto";
+    c.rotation = (c.rotation / 90 % 4) * 90;
     if (c.deviceName.length() == 0) c.deviceName = "LongDeck";
     if (c.pages.empty()) {
         DeckPage p;
@@ -125,6 +126,7 @@ void configToJson(JsonDocument &doc) {
     doc["squareTiles"] = c.squareTiles;
     doc["theme"] = c.theme;
     doc["background"] = c.background;
+    doc["rotation"] = c.rotation;
     JsonArray pages = doc["pages"].to<JsonArray>();
     for (const DeckPage &p : c.pages) {
         JsonObject jp = pages.add<JsonObject>();
@@ -176,6 +178,7 @@ bool configFromJson(JsonDocument &doc, String &err) {
     c.squareTiles = doc["squareTiles"] | true;
     c.theme = doc["theme"] | "minimal";
     c.background = doc["background"] | "auto";
+    c.rotation = doc["rotation"] | 0;
     for (JsonObject jp : doc["pages"].as<JsonArray>()) {
         DeckPage p;
         p.name = jp["name"] | "";

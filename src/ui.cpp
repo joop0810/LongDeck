@@ -15,8 +15,10 @@ LV_FONT_DECLARE(font_de_28);
 
 extern void backlightSet(uint8_t level);  // main.cpp
 
-static const int SCR_W = 640;
-static const int SCR_H = 180;
+// Aktuelle Bildschirmgröße (nach Drehung): 640x180 quer oder 180x640 hochkant
+static int SCR_W = 640;
+static int SCR_H = 180;
+static const int LAND_W = 640, LAND_H = 180;
 static const int PAD = 6;
 static const int GAP = 6;
 static const int DOTS_H = 12;
@@ -82,7 +84,7 @@ static const BackdropPreset BACKDROPS[] = {
 static String s_backdropKind;  // was gerade im Puffer liegt
 
 static bool ensureBackdropBuffer() {
-    if (!s_backdropBuf) s_backdropBuf = (lv_color_t *)ps_malloc(sizeof(lv_color_t) * SCR_W * SCR_H);
+    if (!s_backdropBuf) s_backdropBuf = (lv_color_t *)ps_malloc(sizeof(lv_color_t) * LAND_W * LAND_H);
     if (!s_backdropBuf) return false;
     s_backdropDsc.header.always_zero = 0;
     s_backdropDsc.header.w = SCR_W;
@@ -93,13 +95,19 @@ static bool ensureBackdropBuffer() {
     return true;
 }
 
+// Hintergründe werden immer im Querformat (640x180) berechnet und bei Hochkant gedreht abgelegt
+static inline void putPixel(int lx, int ly, lv_color_t c) {
+    if (SCR_W >= SCR_H) s_backdropBuf[ly * SCR_W + lx] = c;
+    else s_backdropBuf[lx * SCR_W + (SCR_W - 1 - ly)] = c;
+}
+
 static bool renderPreset(const BackdropPreset &pr) {
-    for (int y = 0; y < SCR_H; y++) {
-        float t = (float)y / SCR_H;
+    for (int y = 0; y < LAND_H; y++) {
+        float t = (float)y / LAND_H;
         float br = pr.top[0] + (pr.bottom[0] - pr.top[0]) * t;
         float bgc = pr.top[1] + (pr.bottom[1] - pr.top[1]) * t;
         float bb = pr.top[2] + (pr.bottom[2] - pr.top[2]) * t;
-        for (int x = 0; x < SCR_W; x++) {
+        for (int x = 0; x < LAND_W; x++) {
             float r = br, g = bgc, b = bb;
             for (int i = 0; i < pr.nblobs; i++) {
                 const Blob &bl = pr.blobs[i];
@@ -113,8 +121,8 @@ static bool renderPreset(const BackdropPreset &pr) {
                 b += bl.cb * f;
             }
             float n = ((x * 7 + y * 13) & 3) * 0.6f;  // leichtes Dithering gegen Farbstufen
-            s_backdropBuf[y * SCR_W + x] = lv_color_make((uint8_t)min(255.0f, r + n), (uint8_t)min(255.0f, g + n),
-                                                         (uint8_t)min(255.0f, b + n));
+            putPixel(x, y, lv_color_make((uint8_t)min(255.0f, r + n), (uint8_t)min(255.0f, g + n),
+                                                         (uint8_t)min(255.0f, b + n)));
         }
     }
     return true;
@@ -123,14 +131,14 @@ static bool renderPreset(const BackdropPreset &pr) {
 // Eigenes Bild: /bg.bin, 640x180 Pixel RGB565 (Little Endian), von der Web-App vorbereitet
 static bool renderImage() {
     File f = LittleFS.open("/bg.bin", "r");
-    if (!f || f.size() != (size_t)SCR_W * SCR_H * 2) return false;
-    static uint8_t line[SCR_W * 2];
-    for (int y = 0; y < SCR_H; y++) {
+    if (!f || f.size() != (size_t)LAND_W * LAND_H * 2) return false;
+    static uint8_t line[LAND_W * 2];
+    for (int y = 0; y < LAND_H; y++) {
         if (f.read(line, sizeof(line)) != sizeof(line)) { f.close(); return false; }
-        for (int x = 0; x < SCR_W; x++) {
+        for (int x = 0; x < LAND_W; x++) {
             uint16_t v = line[x * 2] | (line[x * 2 + 1] << 8);
             uint8_t r = (v >> 11) & 0x1F, g = (v >> 5) & 0x3F, b = v & 0x1F;
-            s_backdropBuf[y * SCR_W + x] = lv_color_make((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2));
+            putPixel(x, y, lv_color_make((r << 3) | (r >> 2), (g << 2) | (g >> 4), (b << 3) | (b >> 2)));
         }
     }
     f.close();
@@ -142,7 +150,10 @@ static bool renderBackdrop(const String &kindIn) {
     String kind = kindIn;
     if (kind == "black") return false;
     if (!ensureBackdropBuffer()) return false;
-    if (kind == s_backdropKind && kind != "image") return true;
+    String key = kind + (SCR_W >= SCR_H ? "/q" : "/h");
+    s_backdropDsc.header.w = SCR_W;
+    s_backdropDsc.header.h = SCR_H;
+    if (key == s_backdropKind && kind != "image") return true;
     bool ok = false;
     if (kind == "image") ok = renderImage();
     if (!ok) {
@@ -152,7 +163,7 @@ static bool renderBackdrop(const String &kindIn) {
         }
         if (!ok) ok = renderPreset(BACKDROPS[0]);
     }
-    s_backdropKind = kind;
+    s_backdropKind = kind + (SCR_W >= SCR_H ? "/q" : "/h");
     return ok;
 }
 
@@ -504,7 +515,53 @@ static lv_obj_t *mkSmallBtn(lv_obj_t *parent, const char *text, int x, int y, lv
     return b;
 }
 
+static void onRotateBtn(lv_event_t *) {
+    xSemaphoreTakeRecursive(g_configMutex, portMAX_DELAY);
+    g_config.rotation = (g_config.rotation + 90) % 360;
+    configSave();
+    xSemaphoreGiveRecursive(g_configMutex);
+    g_configChanged = true;  // Drehung + Neuaufbau in loop()
+}
+
+static lv_obj_t *mkSlider(lv_obj_t *parent, int x, int y, int w) {
+    lv_obj_t *sl = lv_slider_create(parent);
+    lv_obj_set_pos(sl, x, y);
+    lv_obj_set_size(sl, w, 14);
+    lv_slider_set_range(sl, 10, 255);
+    lv_slider_set_value(sl, g_config.brightness, LV_ANIM_OFF);
+    lv_obj_set_style_bg_color(sl, hex(0x2A2F3A), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(sl, hex(0x5EC8FF), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(sl, hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_add_event_cb(sl, onSlider, LV_EVENT_VALUE_CHANGED, nullptr);
+    lv_obj_add_event_cb(sl, onSlider, LV_EVENT_RELEASED, nullptr);
+    return sl;
+}
+
+static void buildInfoTilePortrait(lv_obj_t *tile) {
+    lv_obj_t *t = mkLabel(tile, &font_de_20, 0xFFFFFF, 14, 16, 0);
+    lv_label_set_text(t, LV_SYMBOL_KEYBOARD " LongDeck");
+    lv_obj_t *v = mkLabel(tile, &font_de_14, 0x8A90A0, 14, 44, 0);
+    lv_label_set_text(v, "Version " LONGDECK_VERSION);
+    s_infoUsb = mkLabel(tile, &font_de_14, 0xFFFFFF, 14, 80, 152);
+    lv_label_set_long_mode(s_infoUsb, LV_LABEL_LONG_WRAP);
+    s_infoEditor = mkLabel(tile, &font_de_14, 0x8A90A0, 14, 140, 152);
+    lv_obj_t *h1 = mkLabel(tile, &font_de_14, 0x8A90A0, 14, 180, 152);
+    lv_label_set_long_mode(h1, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(h1, "Tasten belegen (Chrome/Edge):");
+    lv_obj_t *h2 = mkLabel(tile, &font_de_14, 0x5EC8FF, 14, 220, 152);
+    lv_label_set_long_mode(h2, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(h2, "joop0810.github.io/ LongDeck");
+    lv_obj_t *bl = mkLabel(tile, &font_de_14, 0x8A90A0, 14, 300, 0);
+    lv_label_set_text(bl, LV_SYMBOL_IMAGE " Helligkeit");
+    s_slider = mkSlider(tile, 18, 328, 144);
+    lv_obj_t *b1 = mkSmallBtn(tile, LV_SYMBOL_LOOP " Drehen", 15, 380, onRotateBtn);
+    lv_obj_t *b2 = mkSmallBtn(tile, LV_SYMBOL_REFRESH " Neustart", 15, 432, onRestartBtn);
+    (void)b1; (void)b2;
+    uiUpdateInfo();
+}
+
 static void buildInfoTile(lv_obj_t *tile) {
+    if (SCR_H > SCR_W) return buildInfoTilePortrait(tile);
     lv_obj_t *t = mkLabel(tile, &font_de_28, 0xFFFFFF, 16, 12, 0);
     lv_label_set_text(t, LV_SYMBOL_KEYBOARD " LongDeck");
     lv_obj_t *v = mkLabel(tile, &font_de_14, 0x8A90A0, 18, 48, 0);
@@ -517,20 +574,10 @@ static void buildInfoTile(lv_obj_t *tile) {
     lv_obj_t *h2 = mkLabel(tile, &font_de_14, 0x5EC8FF, 18, 150, 440);
     lv_label_set_text(h2, "joop0810.github.io/LongDeck");
 
-    mkSmallBtn(tile, LV_SYMBOL_REFRESH " Neustart", 472, 12, onRestartBtn);
-
-    lv_obj_t *sl = lv_slider_create(tile);
-    lv_obj_set_pos(sl, 478, 128);
-    lv_obj_set_size(sl, 138, 14);
-    lv_slider_set_range(sl, 10, 255);
-    lv_slider_set_value(sl, g_config.brightness, LV_ANIM_OFF);
-    lv_obj_set_style_bg_color(sl, hex(0x2A2F3A), LV_PART_MAIN);
-    lv_obj_set_style_bg_color(sl, hex(0x5EC8FF), LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(sl, hex(0xFFFFFF), LV_PART_KNOB);
-    lv_obj_add_event_cb(sl, onSlider, LV_EVENT_VALUE_CHANGED, nullptr);
-    lv_obj_add_event_cb(sl, onSlider, LV_EVENT_RELEASED, nullptr);
-    s_slider = sl;
-    lv_obj_t *bl = mkLabel(tile, &font_de_14, 0x8A90A0, 478, 100, 0);
+    mkSmallBtn(tile, LV_SYMBOL_REFRESH " Neustart", 472, 8, onRestartBtn);
+    mkSmallBtn(tile, LV_SYMBOL_LOOP " Drehen", 472, 54, onRotateBtn);
+    s_slider = mkSlider(tile, 478, 140, 138);
+    lv_obj_t *bl = mkLabel(tile, &font_de_14, 0x8A90A0, 478, 112, 0);
     lv_label_set_text(bl, LV_SYMBOL_IMAGE " Helligkeit");
     uiUpdateInfo();
 }
@@ -564,6 +611,9 @@ void uiBuild() {
     s_infoUsb = s_infoEditor = s_slider = nullptr;
     s_lastUsb = s_lastEd = -1;
 
+    SCR_W = lv_disp_get_hor_res(nullptr);
+    SCR_H = lv_disp_get_ver_res(nullptr);
+    bool portrait = SCR_H > SCR_W;
     lv_obj_t *scr = lv_scr_act();
     lv_obj_set_style_bg_color(scr, hex(0x000000), 0);
     // Hintergrund: "auto" = Glas-Skins mit Farbverlauf, alle anderen schwarz
@@ -599,7 +649,8 @@ void uiBuild() {
     lv_obj_set_scrollbar_mode(s_tv, LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_event_cb(s_tv, onTileChanged, LV_EVENT_VALUE_CHANGED, nullptr);
 
-    int cols = c.cols, rows = c.rows;
+    // Hochkant: Raster gedreht (aus 1 Zeile x 5 werden 5 Zeilen x 1)
+    int cols = portrait ? c.rows : c.cols, rows = portrait ? c.cols : c.rows;
     int w = (SCR_W - 2 * PAD - (cols - 1) * GAP) / cols;
     int availH = SCR_H - PAD - DOTS_H;
     int h = (availH - (rows - 1) * GAP) / rows;

@@ -23,6 +23,7 @@ Nur USB – kein WLAN, keine Hintergrund-App. Das Board meldet sich am PC als ga
 - **Web-App**: Beschriftung, Symbol, Farben, Aktion, Drag & Drop, Kopieren/Einfügen, „Am PC testen“, Export/Import, Demo-Modus ohne Gerät
 - **11 Skins**: Dashboard (Home-Assistant-Stil), Minimal (Standard), Soft Color, Bold, Mono, Milchglas, Milchglas getönt, Helles Glas, Dunkles Glas, Glas mit Glanz und Klassisch – umschaltbar in den Einstellungen
 - **Hintergründe**: Schwarz, 7 Farbverläufe (Glut, Aurora, Mitternacht, Graphit, Ozean, Sonnenuntergang, Wald) oder ein eigenes Bild (mit Abdunkeln und Weichzeichnen)
+- **Drehbar**: quer, quer 180°, hochkant, hochkant 180° – in der Web-App oder direkt am Gerät (Status-Seite → „Drehen“)
 - **Automatisches Dimmen**, Helligkeitsregler direkt am Gerät
 
 ## Installation
