@@ -268,7 +268,14 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{if(!b.disabled
 class SerialLink{
   constructor(port){this.port=port;this.id=0;this.pending=new Map();this.buf='';this.closed=false}
   async open(){
-    await this.port.open({baudRate:115200,bufferSize:65536});
+    // Port noch von einem früheren Versuch offen? Erst schließen.
+    if(this.port.readable||this.port.writable){try{await this.port.close()}catch(e){}}
+    try{await this.port.open({baudRate:115200,bufferSize:65536})}
+    catch(e){
+      if(e.name==='InvalidStateError')throw new Error('Der Anschluss ist noch belegt (z. B. vom Installer-Fenster). Installer-Fenster schließen oder Seite neu laden (F5) und erneut verbinden.');
+      if(e.name==='NetworkError')throw new Error('Der Anschluss wird von einem anderen Programm benutzt (z. B. Arduino/Serieller Monitor oder ein zweiter Tab). Bitte dort schließen.');
+      throw e;
+    }
     await this.port.setSignals({dataTerminalReady:true,requestToSend:true}).catch(()=>{});
     this.readLoop();
   }
@@ -283,9 +290,9 @@ class SerialLink{
   }
   onLine(line){if(!line.startsWith('{'))return;let m;try{m=JSON.parse(line)}catch(e){return}const p=this.pending.get(m.id);if(p){this.pending.delete(m.id);clearTimeout(p.t);m.ok?p.res(m):p.rej(new Error(m.error||'Fehler'))}}
   fail(msg){for(const p of this.pending.values()){clearTimeout(p.t);p.rej(new Error(msg))}this.pending.clear()}
-  async send(cmd,extra={}){
+  async send(cmd,extra={},timeout=15000){
     const id=++this.id;const line=JSON.stringify({id,cmd,...extra})+'\n';
-    const pr=new Promise((res,rej)=>{const t=setTimeout(()=>{this.pending.delete(id);rej(new Error('Keine Antwort vom Gerät'))},15000);this.pending.set(id,{res,rej,t})});
+    const pr=new Promise((res,rej)=>{const t=setTimeout(()=>{this.pending.delete(id);rej(new Error('Keine Antwort vom Gerät'))},timeout);this.pending.set(id,{res,rej,t})});
     const w=this.port.writable.getWriter();try{await w.write(new TextEncoder().encode(line))}finally{w.releaseLock()}
     return pr;
   }
@@ -317,21 +324,28 @@ function setConnected(on,label){
   if(!on){cfg=null;sel=-1;setDirty(false);if(['keys','settings'].includes(document.querySelector('section.on').id))showTab('start')}
 }
 
+let connecting=false;
 async function attach(l){
+  if(connecting||link)return;
+  connecting=true;
   link=l;
   try{
     await l.open();
-    info=await l.send('hello');
+    info=await l.send('hello',{},4000);
     const res=await l.send('get');cfg=res.config;
     fillLists();page=0;sel=-1;normalize();render();renderSettings();setDirty(false);
     setConnected(true,l.demo?'Demo-Modus (kein Gerät)':'Verbunden · Firmware '+info.version);
     $('fwVer').textContent=l.demo?'':'Installierte Version: '+info.version;
     showTab('keys');
-  }catch(e){toast('Verbindung fehlgeschlagen: '+e.message,false);await l.close();link=null;setConnected(false,'nicht verbunden')}
+  }catch(e){
+    const msg=e.message==='Keine Antwort vom Gerät'?'Das Gerät antwortet nicht. Ist die LongDeck-Firmware installiert? Nach dem Flashen einmal RST drücken bzw. neu anstecken.':e.message;
+    toast('Verbindung fehlgeschlagen: '+msg,false);await l.close();link=null;setConnected(false,'nicht verbunden')}
+  finally{connecting=false}
 }
 async function disconnect(){if(dirty&&!confirm('Ungespeicherte Änderungen verwerfen?'))return false;const l=link;link=null;await l?.close();setConnected(false,'nicht verbunden');return true}
 async function connect(){
   if(!('serial' in navigator)){toast('Bitte Chrome oder Edge verwenden',false);return}
+  if(link||connecting)return;
   try{const port=await navigator.serial.requestPort({filters:[{usbVendorId:0x303a}]});await attach(new SerialLink(port))}
   catch(e){if(e.name!=='NotFoundError')toast(e.message,false)}
 }
