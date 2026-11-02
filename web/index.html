@@ -249,6 +249,7 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
       <div class="hint">Nach der Installation einmal <b>RST</b> drücken bzw. ab- und wieder anstecken.</div>
     </div>
     <div class="hint" id="fwVer"></div>
+    <div class="hint" id="fwAvail"></div>
   </div>
 </section>
 </main>
@@ -346,6 +347,7 @@ async function attach(l){
     fillLists();page=0;sel=-1;normalize();render();renderSettings();setDirty(false);
     setConnected(true,l.demo?'Demo-Modus (kein Gerät)':'Verbunden · Firmware '+info.version);
     $('fwVer').textContent=l.demo?'':'Installierte Version: '+info.version;
+    checkUpdate();
     showTab('keys');
   }catch(e){
     const msg=e.message==='Keine Antwort vom Gerät'?'Das Gerät antwortet nicht – vermutlich läuft noch eine ältere Firmware (vor 1.1). Bitte im Reiter „Firmware“ neu installieren und danach RST drücken.':e.message;
@@ -375,6 +377,18 @@ if('serial' in navigator){
 setInterval(()=>{if(link&&!link.demo)link.send('ping').catch(()=>{})},3000);
 // Für den Firmware-Installer muss der Port frei sein
 // (Verbindung erst vollständig schließen, dann den Installer starten)
+// Manifest immer frisch laden (GitHub Pages cached sonst bis zu 10 Minuten)
+let availVer=null;
+(function(){
+  const url='manifest.json?t='+Date.now();
+  $('installBtn').setAttribute('manifest',url);
+  fetch(url,{cache:'no-store'}).then(r=>r.json()).then(m=>{availVer=m.version;$('fwAvail').textContent='Verfügbar zum Installieren: '+m.version;checkUpdate()}).catch(()=>{});
+})();
+function checkUpdate(){
+  if(!availVer||!info||!info.version||link?.demo)return;
+  if(info.version!==availVer){$('fwVer').innerHTML='Installiert: <b style="color:var(--warn)">'+info.version+'</b> – Update verfügbar!';toast('Firmware-Update '+availVer+' verfügbar (Reiter „Firmware“)')}
+  else $('fwVer').textContent='Installiert: '+info.version+' (aktuell)';
+}
 // Flash-Modus über den 1200-Baud-Trick (funktioniert mit jeder LongDeck-Version, ohne Tasten am Board)
 $('flashModeBtn').onclick=async()=>{
   if(!('serial' in navigator))return toast('Bitte Chrome oder Edge verwenden',false);

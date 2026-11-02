@@ -41,7 +41,10 @@ jobs:
         run: |
           mkdir -p site dist
           cp web/index.html web/manifest.json site/
-          cp firmware/longdeck.bin site/longdeck.bin
+          # Dateiname mit Commit-ID, damit Browser/CDN nie eine alte Firmware aus dem Cache liefern
+          BIN="longdeck-${GITHUB_SHA::7}.bin"
+          cp firmware/longdeck.bin "site/$BIN"
+          sed -i "s/\"longdeck.bin\"/\"$BIN\"/" site/manifest.json
           cp firmware/longdeck.bin dist/longdeck-full.bin
 
       - uses: actions/upload-artifact@v4
