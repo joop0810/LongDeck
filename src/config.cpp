@@ -95,6 +95,7 @@ void configNormalize() {
     c.brightness = max<uint8_t>(c.brightness, 10);
     c.typeDelay = constrain(c.typeDelay, 2, 200);
     if (c.layout != "de" && c.layout != "us") c.layout = "de";
+    if (c.theme != "glass" && c.theme != "flat") c.theme = "glass";
     if (c.deviceName.length() == 0) c.deviceName = "LongDeck";
     if (c.pages.empty()) {
         DeckPage p;
@@ -125,6 +126,7 @@ void configToJson(JsonDocument &doc) {
     doc["layout"] = c.layout;
     doc["typeDelay"] = c.typeDelay;
     doc["squareTiles"] = c.squareTiles;
+    doc["theme"] = c.theme;
     JsonArray pages = doc["pages"].to<JsonArray>();
     for (const DeckPage &p : c.pages) {
         JsonObject jp = pages.add<JsonObject>();
@@ -163,6 +165,7 @@ bool configFromJson(JsonDocument &doc, String &err) {
     c.layout = doc["layout"] | "de";
     c.typeDelay = doc["typeDelay"] | 8;
     c.squareTiles = doc["squareTiles"] | true;
+    c.theme = doc["theme"] | "glass";
     for (JsonObject jp : doc["pages"].as<JsonArray>()) {
         DeckPage p;
         p.name = jp["name"] | "";

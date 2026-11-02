@@ -56,6 +56,94 @@ static void onButtonClicked(lv_event_t *e) {
     actionsTrigger((int)(data >> 8), (int)(data & 0xFF));
 }
 
+// ---------------------------------------------------------------------------
+// Hintergrund für das Glas-Design: dunkler Verlauf mit weichen Farbflecken,
+// einmalig in den PSRAM gerechnet (LVGL 8 kann nicht weichzeichnen).
+// ---------------------------------------------------------------------------
+static lv_img_dsc_t s_backdropDsc;
+static lv_color_t *s_backdropBuf = nullptr;
+static lv_obj_t *s_backdrop = nullptr;
+
+struct Blob { float x, y, r; uint8_t cr, cg, cb; float strength; };
+
+static void renderBackdrop() {
+    if (s_backdropBuf) return;
+    s_backdropBuf = (lv_color_t *)ps_malloc(sizeof(lv_color_t) * SCR_W * SCR_H);
+    if (!s_backdropBuf) return;
+    const Blob blobs[] = {
+        {90, 10, 260, 0x2B, 0x59, 0xF0, 0.55f},   // Blau oben links
+        {560, 170, 280, 0x8A, 0x3F, 0xFC, 0.50f},  // Violett unten rechts
+        {330, 190, 200, 0x10, 0xC8, 0xB0, 0.30f},  // Türkis unten Mitte
+    };
+    for (int y = 0; y < SCR_H; y++) {
+        // Grundverlauf: fast schwarz, unten minimal heller
+        float t = (float)y / SCR_H;
+        float br = 6 + 6 * t, bgc = 7 + 7 * t, bb = 11 + 10 * t;
+        for (int x = 0; x < SCR_W; x++) {
+            float r = br, g = bgc, b = bb;
+            for (const Blob &bl : blobs) {
+                float dx = x - bl.x, dy = (y - bl.y) * 1.6f;
+                float d2 = (dx * dx + dy * dy) / (bl.r * bl.r);
+                if (d2 >= 1.0f) continue;
+                float f = (1.0f - d2);
+                f = f * f * bl.strength;  // weicher Abfall
+                r += bl.cr * f;
+                g += bl.cg * f;
+                b += bl.cb * f;
+            }
+            // leichtes Dithering gegen Farbstufen
+            float n = ((x * 7 + y * 13) & 3) * 0.6f;
+            s_backdropBuf[y * SCR_W + x] = lv_color_make((uint8_t)min(255.0f, r + n), (uint8_t)min(255.0f, g + n),
+                                                         (uint8_t)min(255.0f, b + n));
+        }
+    }
+    s_backdropDsc.header.always_zero = 0;
+    s_backdropDsc.header.w = SCR_W;
+    s_backdropDsc.header.h = SCR_H;
+    s_backdropDsc.header.cf = LV_IMG_CF_TRUE_COLOR;
+    s_backdropDsc.data_size = sizeof(lv_color_t) * SCR_W * SCR_H;
+    s_backdropDsc.data = (const uint8_t *)s_backdropBuf;
+}
+
+static void styleGlass(lv_obj_t *o, lv_color_t c, int w, int h) {
+    lv_color_t black = lv_color_black();
+    lv_color_t white = lv_color_white();
+    lv_obj_set_style_bg_opa(o, 165, 0);
+    lv_obj_set_style_bg_color(o, lv_color_mix(c, black, 165), 0);
+    lv_obj_set_style_bg_grad_color(o, lv_color_mix(c, black, 70), 0);
+    lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_border_width(o, 1, 0);
+    lv_obj_set_style_border_color(o, lv_color_mix(white, c, 150), 0);
+    lv_obj_set_style_border_opa(o, 120, 0);
+    lv_obj_set_style_shadow_color(o, c, 0);
+    lv_obj_set_style_shadow_width(o, 22, 0);
+    lv_obj_set_style_shadow_opa(o, 95, 0);
+    lv_obj_set_style_shadow_ofs_y(o, 3, 0);
+    lv_obj_set_style_shadow_spread(o, -3, 0);
+    // gedrückt: heller, Kante leuchtet
+    lv_obj_set_style_bg_opa(o, 225, LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(o, lv_color_mix(c, black, 220), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_grad_color(o, lv_color_mix(c, black, 130), LV_STATE_PRESSED);
+    lv_obj_set_style_border_opa(o, 255, LV_STATE_PRESSED);
+    lv_obj_set_style_shadow_opa(o, 180, LV_STATE_PRESSED);
+    lv_obj_set_style_transform_width(o, -3, LV_STATE_PRESSED);
+    lv_obj_set_style_transform_height(o, -3, LV_STATE_PRESSED);
+    lv_obj_set_style_clip_corner(o, true, 0);
+
+    // Glanz: heller Streifen in der oberen Hälfte
+    lv_obj_t *sheen = lv_obj_create(o);
+    lv_obj_remove_style_all(sheen);
+    lv_obj_add_flag(sheen, LV_OBJ_FLAG_IGNORE_LAYOUT | LV_OBJ_FLAG_FLOATING);
+    lv_obj_clear_flag(sheen, LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(sheen, w - 2, h * 45 / 100);
+    lv_obj_set_pos(sheen, 1, 1);
+    lv_obj_set_style_radius(sheen, 13, 0);
+    lv_obj_set_style_bg_opa(sheen, 28, 0);
+    lv_obj_set_style_bg_color(sheen, white, 0);
+    lv_obj_set_style_bg_grad_color(sheen, c, 0);
+    lv_obj_set_style_bg_grad_dir(sheen, LV_GRAD_DIR_VER, 0);
+}
+
 static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int idx, int x, int y, int w, int h) {
     lv_obj_t *o = lv_obj_create(parent);
     lv_obj_remove_style_all(o);
@@ -66,25 +154,33 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
     lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
 
     bool empty = b.type == ACT_NONE && b.label.length() == 0 && b.icon.length() == 0;
+    bool glass = g_config.theme == "glass";
     if (empty) {
-        lv_obj_set_style_bg_color(o, hex(0x0E1014), 0);
+        lv_obj_set_style_bg_color(o, glass ? lv_color_white() : hex(0x0E1014), 0);
+        lv_obj_set_style_bg_opa(o, glass ? 10 : LV_OPA_COVER, 0);
         lv_obj_set_style_border_width(o, 1, 0);
-        lv_obj_set_style_border_color(o, hex(0x1E222A), 0);
+        lv_obj_set_style_border_color(o, glass ? lv_color_white() : hex(0x1E222A), 0);
+        lv_obj_set_style_border_opa(o, glass ? 28 : LV_OPA_COVER, 0);
         lv_obj_clear_flag(o, LV_OBJ_FLAG_CLICKABLE);
         s_btns[page].push_back(o);
         return;
     }
 
     lv_color_t bg = hex(b.bg);
-    lv_obj_set_style_bg_color(o, bg, 0);
-    lv_obj_set_style_bg_grad_color(o, lv_color_darken(bg, 40), 0);
-    lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
-    lv_obj_set_style_bg_color(o, lv_color_lighten(bg, 70), LV_STATE_PRESSED);
-    lv_obj_set_style_bg_grad_color(o, lv_color_lighten(bg, 30), LV_STATE_PRESSED);
-    lv_obj_set_style_transform_width(o, -3, LV_STATE_PRESSED);
-    lv_obj_set_style_transform_height(o, -3, LV_STATE_PRESSED);
-    lv_obj_set_style_border_width(o, 0, 0);
-    lv_obj_set_style_border_color(o, hex(0xFF4D4F), 0);
+    if (glass) {
+        styleGlass(o, bg, w, h);
+        lv_color_t edge = lv_color_mix(lv_color_white(), bg, 150);
+        lv_obj_set_user_data(o, (void *)(uintptr_t)lv_color_to32(edge));
+    } else {
+        lv_obj_set_style_bg_color(o, bg, 0);
+        lv_obj_set_style_bg_grad_color(o, lv_color_darken(bg, 40), 0);
+        lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
+        lv_obj_set_style_bg_color(o, lv_color_lighten(bg, 70), LV_STATE_PRESSED);
+        lv_obj_set_style_bg_grad_color(o, lv_color_lighten(bg, 30), LV_STATE_PRESSED);
+        lv_obj_set_style_transform_width(o, -3, LV_STATE_PRESSED);
+        lv_obj_set_style_transform_height(o, -3, LV_STATE_PRESSED);
+        lv_obj_set_style_border_width(o, 0, 0);
+    }
     lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);
 
     lv_obj_set_flex_flow(o, LV_FLEX_FLOW_COLUMN);
@@ -227,6 +323,20 @@ void uiBuild() {
 
     lv_obj_t *scr = lv_scr_act();
     lv_obj_set_style_bg_color(scr, hex(0x000000), 0);
+    bool glassTheme = g_config.theme == "glass";
+    if (glassTheme) renderBackdrop();
+    if (glassTheme && s_backdropBuf) {
+        if (!s_backdrop) {
+            s_backdrop = lv_img_create(scr);
+            lv_img_set_src(s_backdrop, &s_backdropDsc);
+            lv_obj_set_pos(s_backdrop, 0, 0);
+            lv_obj_clear_flag(s_backdrop, LV_OBJ_FLAG_CLICKABLE);
+        }
+        lv_obj_clear_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_background(s_backdrop);
+    } else if (s_backdrop) {
+        lv_obj_add_flag(s_backdrop, LV_OBJ_FLAG_HIDDEN);
+    }
     lv_obj_set_style_text_font(scr, &font_de_14, 0);
     lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -238,6 +348,7 @@ void uiBuild() {
     s_tv = lv_tileview_create(scr);
     lv_obj_set_size(s_tv, SCR_W, SCR_H);
     lv_obj_set_style_bg_color(s_tv, hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(s_tv, glassTheme ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
     lv_obj_set_scrollbar_mode(s_tv, LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_event_cb(s_tv, onTileChanged, LV_EVENT_VALUE_CHANGED, nullptr);
 
@@ -323,7 +434,14 @@ void uiToast(const char *msg, bool ok) {
 static void flashOff(lv_timer_t *t) {
     lv_obj_t *o = (lv_obj_t *)t->user_data;
     // Objekt könnte inzwischen durch Neuaufbau gelöscht sein -> nur zurücksetzen, wenn noch gültig
-    if (lv_obj_is_valid(o)) lv_obj_set_style_border_width(o, 0, 0);
+    if (!lv_obj_is_valid(o)) return;
+    bool glass = g_config.theme == "glass";
+    lv_obj_set_style_border_width(o, glass ? 1 : 0, 0);
+    lv_obj_set_style_border_opa(o, glass ? 120 : LV_OPA_COVER, 0);
+    if (t->user_data) {
+        // ursprüngliche Randfarbe steht im Objekt-User-Data
+        lv_obj_set_style_border_color(o, lv_color_hex((uint32_t)(uintptr_t)lv_obj_get_user_data(o)), 0);
+    }
 }
 
 void uiFlashButton(int page, int button, bool ok) {
@@ -331,6 +449,7 @@ void uiFlashButton(int page, int button, bool ok) {
     if (button < 0 || button >= (int)s_btns[page].size()) return;
     lv_obj_t *o = s_btns[page][button];
     lv_obj_set_style_border_color(o, ok ? hex(0x4ADE80) : hex(0xFF4D4F), 0);
+    lv_obj_set_style_border_opa(o, LV_OPA_COVER, 0);
     lv_obj_set_style_border_width(o, 3, 0);
     lv_timer_t *t = lv_timer_create(flashOff, 600, o);
     lv_timer_set_repeat_count(t, 1);

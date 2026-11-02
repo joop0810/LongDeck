@@ -20,6 +20,7 @@ Nur USB – kein WLAN, keine Hintergrund-App. Das Board meldet sich am PC als ga
 - **Über 450 moderne Icons** aus [Tabler Icons](https://tabler.io/icons) (Linie und Gefüllt), inkl. Marken-Logos wie Discord, Spotify, Twitch, Steam, Teams – mit Suche (auch auf Deutsch) in der Web-App
 - **Tastaturlayout Deutsch (QWERTZ) oder US** – damit `Z`, `Y`, `@`, `\`, `ä` usw. richtig ankommen
 - **Web-App**: Beschriftung, Symbol, Farben, Aktion, Drag & Drop, Kopieren/Einfügen, „Am PC testen“, Export/Import, Demo-Modus ohne Gerät
+- **Glas-Design** (Standard): halbtransparente, leuchtende Kacheln auf farbigem Hintergrund – umschaltbar auf „Flach“
 - **Automatisches Dimmen**, Helligkeitsregler direkt am Gerät
 
 ## Installation
