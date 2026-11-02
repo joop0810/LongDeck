@@ -11,6 +11,7 @@ static USBHIDConsumerControl s_consumer;
 static USBHID s_hid;
 
 void keysBegin(const char *productName) {
+    USBSerial.setRxBufferSize(4096);
     USBSerial.begin(115200);
     s_keyboard.begin();
     s_consumer.begin();

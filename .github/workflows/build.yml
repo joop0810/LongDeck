@@ -43,7 +43,6 @@ jobs:
           cp web/index.html web/manifest.json site/
           cp firmware/longdeck.bin site/longdeck.bin
           cp firmware/longdeck.bin dist/longdeck-full.bin
-          cp .pio/build/longdeck/firmware.bin dist/longdeck-ota.bin
 
       - uses: actions/upload-artifact@v4
         with:
@@ -61,7 +60,6 @@ jobs:
         with:
           files: |
             dist/longdeck-full.bin
-            dist/longdeck-ota.bin
 
   pages:
     needs: build

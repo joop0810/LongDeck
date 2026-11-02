@@ -8,7 +8,7 @@
 #include "config.h"
 #include "keys.h"
 #include "actions.h"
-#include "net.h"
+#include "protocol.h"
 #include "ui.h"
 #include "log.h"
 
@@ -128,7 +128,7 @@ void setup() {
     lvglBegin();
 
     actionsBegin();
-    netBegin();
+    protocolBegin();
     uiBuild();
     lv_timer_handler();
     backlightSet(g_config.brightness);
@@ -140,7 +140,7 @@ void loop() {
     if (transfer_num <= 0 && lcd_PushColors_len <= 0) lv_timer_handler();
     if (transfer_num <= 1 && lcd_PushColors_len > 0) lcd_PushColors(0, 0, 0, 0, NULL);
 
-    netLoop();
+    protocolLoop();
 
     if (g_configChanged) {
         g_configChanged = false;

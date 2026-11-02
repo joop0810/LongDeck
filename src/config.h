@@ -8,15 +8,18 @@
 #define LD_MAX_COLS  8
 #define LD_MAX_ROWS  3
 
+#define LONGDECK_VERSION "1.1.0"
+
 // Aktionstypen einer Taste
 enum ActionType : uint8_t {
     ACT_NONE = 0,
     ACT_HOTKEY,   // Tastenkombination(en), z. B. "CTRL+SHIFT+M" oder "CTRL+K, CTRL+C"
     ACT_MEDIA,    // Media-Taste, z. B. "VOL_UP"
     ACT_TEXT,     // Text tippen
-    ACT_HTTP,     // HTTP-Request (z. B. Home-Assistant-Webhook)
+    ACT_HTTP,     // Webhook/HTTP-Request – wird am PC per PowerShell (Win+R) ausgeführt
     ACT_PAGE,     // Zu Seite springen (value = Seitennummer, 1-basiert)
-    ACT_MACRO,    // Mehrere Schritte, eine Zeile pro Schritt (key:/text:/media:/delay:/page:)
+    ACT_MACRO,    // Mehrere Schritte, eine Zeile pro Schritt (key:/text:/media:/delay:/page:/open:)
+    ACT_OPEN,     // Programm, Datei, Ordner oder Webseite öffnen (über Win+R)
 };
 
 struct DeckButton {
@@ -51,6 +54,8 @@ struct DeckConfig {
 
 extern DeckConfig g_config;
 extern SemaphoreHandle_t g_configMutex;
+// Wird gesetzt, wenn die Konfiguration per USB geändert wurde -> UI neu aufbauen
+extern volatile bool g_configChanged;
 
 void configBegin();
 bool configLoad();

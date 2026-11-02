@@ -4,18 +4,19 @@
 
 DeckConfig g_config;
 SemaphoreHandle_t g_configMutex = nullptr;
+volatile bool g_configChanged = false;
 
 static const char *CONFIG_PATH = "/config.json";
 
-static const char *TYPE_NAMES[] = {"none", "hotkey", "media", "text", "http", "page", "macro"};
+static const char *TYPE_NAMES[] = {"none", "hotkey", "media", "text", "http", "page", "macro", "open"};
 
 const char *actionTypeName(ActionType t) {
-    if (t > ACT_MACRO) return "none";
+    if (t > ACT_OPEN) return "none";
     return TYPE_NAMES[t];
 }
 
 ActionType actionTypeFromName(const String &s) {
-    for (uint8_t i = 0; i <= ACT_MACRO; i++) {
+    for (uint8_t i = 0; i <= ACT_OPEN; i++) {
         if (s.equalsIgnoreCase(TYPE_NAMES[i])) return (ActionType)i;
     }
     return ACT_NONE;
@@ -69,9 +70,9 @@ void configDefaults() {
     p2.name = "Werkzeuge";
     p2.buttons = {
         mk("Explorer", "directory", 0x6B4E16, ACT_HOTKEY, "GUI+E"),
-        mk("Ausführen", "right", 0x3A3F4B, ACT_HOTKEY, "GUI+R"),
+        mk("Editor", "edit", 0x3A3F4B, ACT_OPEN, "notepad"),
         mk("Einstell.", "settings", 0x3A3F4B, ACT_HOTKEY, "GUI+I"),
-        mk("Rechner", "keyboard", 0x1F4E79, ACT_MEDIA, "CALCULATOR"),
+        mk("Rechner", "keyboard", 0x1F4E79, ACT_OPEN, "calc"),
         mk("Gruß", "edit", 0x2E5E3A, ACT_TEXT, "Viele Grüße\n"),
         mk("Mic aus", "mute", 0x7A1F2B, ACT_HOTKEY, "CTRL+SHIFT+M"),
         mk("Rückgängig", "loop", 0x3A3F4B, ACT_HOTKEY, "CTRL+Z"),

@@ -1,8 +1,5 @@
 #include "actions.h"
 #include "keys.h"
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <WiFiClientSecure.h>
 
 struct ActionJob {
     int8_t page;
@@ -25,39 +22,45 @@ static void postResult(const ActionJob &job, bool ok, const String &msg, int got
     xQueueSend(s_results, &r, 0);
 }
 
-static bool runHttp(const DeckButton &b, String &msg) {
-    if (WiFi.status() != WL_CONNECTED) { msg = "Kein WLAN"; return false; }
-    if (b.value.length() == 0) { msg = "Keine URL"; return false; }
+// Max. Länge, die das Windows-Ausführen-Fenster (Win+R) annimmt
+static const size_t RUN_MAX = 259;
 
-    HTTPClient http;
-    WiFiClientSecure secure;
-    WiFiClient plain;
-    bool ok;
-    if (b.value.startsWith("https://")) {
-        secure.setInsecure();  // kein Zertifikats-Pinning auf dem Mikrocontroller
-        ok = http.begin(secure, b.value);
-    } else {
-        ok = http.begin(plain, b.value);
-    }
-    if (!ok) { msg = "URL ungueltig"; return false; }
-    http.setTimeout(8000);
-    http.setConnectTimeout(5000);
-    if (b.auth.length()) http.addHeader("Authorization", "Bearer " + b.auth);
+// Öffnet Win+R, tippt den Befehl und bestätigt mit Enter
+static bool runDialog(const String &cmd, const ActionJob &job, String &msg) {
+    if (cmd.length() == 0) { msg = "Nichts zum Ausfuehren"; return false; }
+    if (cmd.length() > RUN_MAX) { msg = "Befehl zu lang (" + String(cmd.length()) + ">259)"; return false; }
+    String err;
+    if (!keysSendCombo("GUI+R", job.layout, err)) { msg = err; return false; }
+    delay(550);  // Fenster öffnen lassen
+    keysType(cmd, job.layout, job.typeDelay);
+    delay(60);
+    keysSendCombo("ENTER", job.layout, err);
+    return true;
+}
 
+// Für PowerShell-Strings in einfachen Anführungszeichen: ' -> ''  und  " -> \" (Kommandozeile)
+static String psQuote(const String &in) {
+    String s = in;
+    s.replace("'", "''");
+    s.replace("\"", "\\\"");
+    s.replace("\r", "");
+    s.replace("\n", " ");
+    return "'" + s + "'";
+}
+
+// Baut den PowerShell-Befehl für einen Webhook. Muss identisch zur Web-App sein (buildWebhookCmd).
+String buildWebhookCommand(const DeckButton &b) {
     String method = b.method;
     method.toUpperCase();
     if (method.length() == 0) method = "POST";
-    int code;
-    if (method == "GET") {
-        code = http.GET();
-    } else {
-        http.addHeader("Content-Type", b.contentType.length() ? b.contentType : String("application/json"));
-        code = http.sendRequest(method.c_str(), b.body);
+    String c = "powershell -w hidden -nop -c \"iwr -useb -Me " + method + " " + psQuote(b.value);
+    if (b.body.length()) {
+        c += " -ContentType " + psQuote(b.contentType.length() ? b.contentType : String("application/json"));
+        c += " -Body " + psQuote(b.body);
     }
-    http.end();
-    if (code <= 0) { msg = "HTTP-Fehler " + String(code); return false; }
-    msg = "HTTP " + String(code);
-    return code >= 200 && code < 300;
+    if (b.auth.length()) c += " -H @{Authorization=" + psQuote("Bearer " + b.auth) + "}";
+    c += "\"";
+    return c;
 }
 
 // Makro: eine Zeile pro Schritt
@@ -66,6 +69,7 @@ static bool runHttp(const DeckButton &b, String &msg) {
 //   media:VOL_UP     Media-Taste
 //   delay:500        Warten in ms
 //   page:2           Seite wechseln
+//   open:notepad     Programm/Datei/Ordner/URL öffnen (Win+R)
 static bool runMacro(const ActionJob &job, String &msg, int &gotoPage) {
     const String &src = job.btn.value;
     int start = 0;
@@ -92,6 +96,9 @@ static bool runMacro(const ActionJob &job, String &msg, int &gotoPage) {
             delay(constrain(arg.toInt(), 0, 10000));
         } else if (cmd == "page") {
             gotoPage = arg.toInt() - 1;
+        } else if (cmd == "open") {
+            arg.trim();
+            if (!runDialog(arg, job, msg)) return false;
         } else {
             msg = "Unbekannt: " + cmd;
             return false;
@@ -110,7 +117,7 @@ static void worker(void *) {
         String msg, err;
         bool ok = true;
         int gotoPage = -1;
-        bool needsUsb = b.type == ACT_HOTKEY || b.type == ACT_MEDIA || b.type == ACT_TEXT || b.type == ACT_MACRO;
+        bool needsUsb = b.type != ACT_PAGE;
         if (needsUsb && !keysUsbReady()) {
             postResult(*job, false, "USB nicht verbunden");
             delete job;
@@ -129,7 +136,11 @@ static void worker(void *) {
                 keysType(b.value, job->layout, job->typeDelay);
                 break;
             case ACT_HTTP:
-                ok = runHttp(b, msg);
+                if (b.value.length() == 0) { ok = false; msg = "Keine URL"; break; }
+                ok = runDialog(buildWebhookCommand(b), *job, msg);
+                break;
+            case ACT_OPEN:
+                ok = runDialog(b.value, *job, msg);
                 break;
             case ACT_PAGE:
                 gotoPage = b.value.toInt() - 1;

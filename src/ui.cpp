@@ -1,7 +1,7 @@
 #include "ui.h"
 #include "config.h"
 #include "actions.h"
-#include "net.h"
+#include "protocol.h"
 #include "keys.h"
 #include "icons.h"
 #include "lvgl.h"
@@ -23,10 +23,9 @@ static std::vector<std::vector<lv_obj_t *>> s_btns;
 static int s_pageCount = 0;
 
 // Info-Seite
-static lv_obj_t *s_infoWifi = nullptr;
-static lv_obj_t *s_infoUrl = nullptr;
-static lv_obj_t *s_infoAp = nullptr;
 static lv_obj_t *s_infoUsb = nullptr;
+static lv_obj_t *s_infoEditor = nullptr;
+static int s_lastUsb = -1, s_lastEd = -1;
 static lv_obj_t *s_slider = nullptr;
 
 static lv_color_t hex(uint32_t c) { return lv_color_hex(c); }
@@ -112,11 +111,6 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
     s_btns[page].push_back(o);
 }
 
-static void onApBtn(lv_event_t *) {
-    netStartAp();
-    uiUpdateInfo();
-}
-
 static void onRestartBtn(lv_event_t *) { ESP.restart(); }
 
 static void onSlider(lv_event_t *e) {
@@ -168,13 +162,14 @@ static void buildInfoTile(lv_obj_t *tile) {
     lv_obj_t *v = mkLabel(tile, &lv_font_montserrat_14, 0x8A90A0, 18, 48, 0);
     lv_label_set_text(v, "Version " LONGDECK_VERSION);
 
-    s_infoWifi = mkLabel(tile, &lv_font_montserrat_14, 0xFFFFFF, 18, 76, 430);
-    s_infoUrl = mkLabel(tile, &lv_font_montserrat_20, 0x5EC8FF, 18, 98, 430);
-    s_infoAp = mkLabel(tile, &lv_font_montserrat_14, 0xFFC857, 18, 126, 430);
-    s_infoUsb = mkLabel(tile, &lv_font_montserrat_14, 0x8A90A0, 18, 148, 430);
+    s_infoUsb = mkLabel(tile, &lv_font_montserrat_14, 0xFFFFFF, 18, 78, 430);
+    s_infoEditor = mkLabel(tile, &lv_font_montserrat_14, 0x8A90A0, 18, 100, 430);
+    lv_obj_t *h1 = mkLabel(tile, &lv_font_montserrat_14, 0x8A90A0, 18, 130, 430);
+    lv_label_set_text(h1, "Tasten belegen (Chrome/Edge):");
+    lv_obj_t *h2 = mkLabel(tile, &lv_font_montserrat_14, 0x5EC8FF, 18, 150, 440);
+    lv_label_set_text(h2, "joop0810.github.io/LongDeck");
 
-    mkSmallBtn(tile, LV_SYMBOL_WIFI " Setup-WLAN", 472, 12, onApBtn);
-    mkSmallBtn(tile, LV_SYMBOL_REFRESH " Neustart", 472, 60, onRestartBtn);
+    mkSmallBtn(tile, LV_SYMBOL_REFRESH " Neustart", 472, 12, onRestartBtn);
 
     lv_obj_t *sl = lv_slider_create(tile);
     lv_obj_set_pos(sl, 478, 128);
@@ -187,30 +182,22 @@ static void buildInfoTile(lv_obj_t *tile) {
     lv_obj_add_event_cb(sl, onSlider, LV_EVENT_VALUE_CHANGED, nullptr);
     lv_obj_add_event_cb(sl, onSlider, LV_EVENT_RELEASED, nullptr);
     s_slider = sl;
-    lv_obj_t *bl = mkLabel(tile, &lv_font_montserrat_14, 0x8A90A0, 478, 106, 0);
+    lv_obj_t *bl = mkLabel(tile, &lv_font_montserrat_14, 0x8A90A0, 478, 100, 0);
     lv_label_set_text(bl, LV_SYMBOL_IMAGE " Helligkeit");
     uiUpdateInfo();
 }
 
 void uiUpdateInfo() {
-    if (!s_infoWifi) return;
-    NetStatus s = netStatus();
-    if (s.staConnected) {
-        lv_label_set_text_fmt(s_infoWifi, LV_SYMBOL_WIFI " Verbunden mit %s", s.ssid.c_str());
-        lv_label_set_text_fmt(s_infoUrl, "http://%s", s.ip.c_str());
-    } else if (s.ssid.length()) {
-        lv_label_set_text_fmt(s_infoWifi, LV_SYMBOL_WIFI " Verbinde mit %s ...", s.ssid.c_str());
-        lv_label_set_text(s_infoUrl, s.apActive ? ("http://" + s.apIp).c_str() : "");
-    } else {
-        lv_label_set_text(s_infoWifi, LV_SYMBOL_WIFI " Kein WLAN eingerichtet");
-        lv_label_set_text(s_infoUrl, s.apActive ? ("http://" + s.apIp).c_str() : "");
-    }
-    if (s.apActive) {
-        lv_label_set_text_fmt(s_infoAp, "Setup-WLAN: %s  /  Passwort: %s", s.apName.c_str(), s.apPass.c_str());
-    } else {
-        lv_label_set_text(s_infoAp, s.staConnected ? "Einstellungen: http://longdeck.local" : "");
-    }
-    lv_label_set_text(s_infoUsb, keysUsbReady() ? LV_SYMBOL_USB " USB-Tastatur bereit" : LV_SYMBOL_USB " USB nicht verbunden (nur Strom?)");
+    if (!s_infoUsb) return;
+    int usb = keysUsbReady() ? 1 : 0;
+    int ed = protocolEditorConnected() ? 1 : 0;
+    if (usb == s_lastUsb && ed == s_lastEd) return;  // nur bei Änderung neu zeichnen
+    s_lastUsb = usb;
+    s_lastEd = ed;
+    lv_label_set_text(s_infoUsb, usb ? LV_SYMBOL_USB "  Mit PC verbunden - Tastatur bereit"
+                                     : LV_SYMBOL_USB "  Kein PC erkannt (nur Strom?)");
+    lv_obj_set_style_text_color(s_infoUsb, usb ? hex(0x4ADE80) : hex(0xFFC857), 0);
+    lv_label_set_text(s_infoEditor, ed ? LV_SYMBOL_EDIT "  Editor verbunden" : "");
 }
 
 // ---------------------------------------------------------------------------
@@ -226,7 +213,8 @@ void uiBuild() {
         lv_obj_del(s_dots);
         s_dots = nullptr;
     }
-    s_infoWifi = s_infoUrl = s_infoAp = s_infoUsb = s_slider = nullptr;
+    s_infoUsb = s_infoEditor = s_slider = nullptr;
+    s_lastUsb = s_lastEd = -1;
 
     lv_obj_t *scr = lv_scr_act();
     lv_obj_set_style_bg_color(scr, hex(0x000000), 0);
