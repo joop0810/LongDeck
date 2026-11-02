@@ -8,7 +8,7 @@ Nur USB – kein WLAN, keine Hintergrund-App. Das Board meldet sich am PC als ga
 
 ## Funktionen
 
-- **Touch-Kacheln** im Raster (Standard 6 × 2, einstellbar bis 8 × 3), bis zu 12 Seiten – Wischen wechselt die Seite
+- **Touch-Kacheln** im Raster (Standard 1 × 5, einstellbar bis 8 × 3), bis zu 12 Seiten – Wischen wechselt die Seite
 - **Aktionen pro Taste**
   - **Tastenkombination** – z. B. `CTRL+SHIFT+M`, `WIN+L`, Folgen wie `CTRL+K, CTRL+C`; Aufnahme direkt in der Web-App
   - **Media-Taste** – Lautstärke, Stumm, Play/Pause, Titel vor/zurück …

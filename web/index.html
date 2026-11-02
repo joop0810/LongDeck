@@ -389,9 +389,10 @@ class SerialLink{
 }
 
 // Demo ohne Gerät
-const DEMO_CFG={deviceName:"LongDeck",cols:6,rows:2,squareTiles:true,theme:"minimal",background:"auto",brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
- {name:"Start",buttons:[["Leiser","volume_mid","#3B82F6","media","VOL_DOWN"],["Stumm","mute","#EF4444","media","MUTE"],["Lauter","volume_max","#3B82F6","media","VOL_UP"],["Zurück","prev","#22C55E","media","PREV"],["Play","play","#22C55E","media","PLAY_PAUSE"],["Weiter","next","#22C55E","media","NEXT"],["Kopieren","copy","#A1A1AA","hotkey","CTRL+C"],["Einfügen","paste","#A1A1AA","hotkey","CTRL+V"],["Screenshot","image","#A855F7","hotkey","GUI+SHIFT+S"],["Task-\nManager","list","#F59E0B","hotkey","CTRL+SHIFT+ESC"],["Desktop","home","#A1A1AA","hotkey","GUI+D"],["Sperren","power","#EF4444","hotkey","GUI+L"]]},
- {name:"Werkzeuge",buttons:[["Explorer","directory","#F59E0B","hotkey","GUI+E"],["Editor","edit","#A1A1AA","open","notepad"],["Einstell.","settings","#A1A1AA","hotkey","GUI+I"],["Rechner","keyboard","#3B82F6","open","calc"],["Gruß","edit","#22C55E","text","Viele Grüße\n"],["Mic aus","mute","#EF4444","hotkey","CTRL+SHIFT+M"],["Rückgängig","loop","#A1A1AA","hotkey","CTRL+Z"],["Wieder-\nholen","refresh","#A1A1AA","hotkey","CTRL+Y"],["Speichern","save","#3B82F6","hotkey","CTRL+S"],["Neuer Tab","plus","#A1A1AA","hotkey","CTRL+T"],["Alt+Tab","shuffle","#A1A1AA","hotkey","ALT+TAB"],["Start","home","#22C55E","page","1"]]}]};
+const DEMO_CFG={deviceName:"LongDeck",cols:5,rows:1,squareTiles:true,theme:"minimal",background:"auto",brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
+ {name:"Medien",buttons:[["Leiser","volume-2","#3B82F6","media","VOL_DOWN"],["Stumm","volume-off","#EF4444","media","MUTE"],["Lauter","volume","#3B82F6","media","VOL_UP"],["Play","player-play","#22C55E","media","PLAY_PAUSE"],["Weiter","player-track-next","#22C55E","media","NEXT"]]},
+ {name:"Arbeit",buttons:[["Kopieren","copy","#A1A1AA","hotkey","CTRL+C"],["Einfügen","clipboard","#A1A1AA","hotkey","CTRL+V"],["Screenshot","screenshot","#A855F7","hotkey","GUI+SHIFT+S"],["Mic aus","microphone-off","#EF4444","hotkey","CTRL+SHIFT+M"],["Sperren","lock","#F59E0B","hotkey","GUI+L"]]},
+ {name:"Werkzeuge",buttons:[["Explorer","folder","#F59E0B","hotkey","GUI+E"],["Rechner","calculator","#3B82F6","open","calc"],["Editor","pencil","#A1A1AA","open","notepad"],["Task-Manager","list-check","#A855F7","hotkey","CTRL+SHIFT+ESC"],["Desktop","home","#22C55E","hotkey","GUI+D"]]}]};
 DEMO_CFG.pages.forEach(p=>p.buttons=p.buttons.map(([label,icon,bg,type,value])=>({label,icon,bg,fg:"#FFFFFF",type,value})));
 class DemoLink{
   constructor(){this.cfg=JSON.parse(JSON.stringify(DEMO_CFG));this.demo=true}

@@ -52,39 +52,35 @@ static DeckButton mk(const char *label, const char *icon, uint32_t bg, ActionTyp
 void configDefaults() {
     g_config = DeckConfig();
     DeckPage p1;
-    p1.name = "Start";
+    p1.name = "Medien";
     p1.buttons = {
         mk("Leiser", "volume-2", 0x3B82F6, ACT_MEDIA, "VOL_DOWN"),
         mk("Stumm", "volume-off", 0xEF4444, ACT_MEDIA, "MUTE"),
         mk("Lauter", "volume", 0x3B82F6, ACT_MEDIA, "VOL_UP"),
-        mk("Zurück", "player-track-prev", 0x22C55E, ACT_MEDIA, "PREV"),
         mk("Play", "player-play", 0x22C55E, ACT_MEDIA, "PLAY_PAUSE"),
         mk("Weiter", "player-track-next", 0x22C55E, ACT_MEDIA, "NEXT"),
+    };
+    DeckPage p2;
+    p2.name = "Arbeit";
+    p2.buttons = {
         mk("Kopieren", "copy", 0xA1A1AA, ACT_HOTKEY, "CTRL+C"),
         mk("Einfügen", "clipboard", 0xA1A1AA, ACT_HOTKEY, "CTRL+V"),
         mk("Screenshot", "screenshot", 0xA855F7, ACT_HOTKEY, "GUI+SHIFT+S"),
-        mk("Task-\nManager", "list-check", 0xF59E0B, ACT_HOTKEY, "CTRL+SHIFT+ESC"),
-        mk("Desktop", "home", 0xA1A1AA, ACT_HOTKEY, "GUI+D"),
-        mk("Sperren", "power", 0xEF4444, ACT_HOTKEY, "GUI+L"),
-    };
-    DeckPage p2;
-    p2.name = "Werkzeuge";
-    p2.buttons = {
-        mk("Explorer", "folder", 0xF59E0B, ACT_HOTKEY, "GUI+E"),
-        mk("Editor", "pencil", 0xA1A1AA, ACT_OPEN, "notepad"),
-        mk("Einstell.", "settings", 0xA1A1AA, ACT_HOTKEY, "GUI+I"),
-        mk("Rechner", "calculator", 0x3B82F6, ACT_OPEN, "calc"),
-        mk("Gruß", "message", 0x22C55E, ACT_TEXT, "Viele Grüße\n"),
         mk("Mic aus", "microphone-off", 0xEF4444, ACT_HOTKEY, "CTRL+SHIFT+M"),
-        mk("Rückgängig", "arrow-back-up", 0xA1A1AA, ACT_HOTKEY, "CTRL+Z"),
-        mk("Wieder-\nholen", "arrow-forward-up", 0xA1A1AA, ACT_HOTKEY, "CTRL+Y"),
-        mk("Speichern", "device-floppy", 0x3B82F6, ACT_HOTKEY, "CTRL+S"),
-        mk("Neuer Tab", "plus", 0xA1A1AA, ACT_HOTKEY, "CTRL+T"),
-        mk("Alt+Tab", "switch-horizontal", 0xA1A1AA, ACT_HOTKEY, "ALT+TAB"),
-        mk("Start", "home", 0x22C55E, ACT_PAGE, "1"),
+        mk("Sperren", "lock", 0xF59E0B, ACT_HOTKEY, "GUI+L"),
+    };
+    DeckPage p3;
+    p3.name = "Werkzeuge";
+    p3.buttons = {
+        mk("Explorer", "folder", 0xF59E0B, ACT_HOTKEY, "GUI+E"),
+        mk("Rechner", "calculator", 0x3B82F6, ACT_OPEN, "calc"),
+        mk("Editor", "pencil", 0xA1A1AA, ACT_OPEN, "notepad"),
+        mk("Task-Manager", "list-check", 0xA855F7, ACT_HOTKEY, "CTRL+SHIFT+ESC"),
+        mk("Desktop", "home", 0x22C55E, ACT_HOTKEY, "GUI+D"),
     };
     g_config.pages.push_back(p1);
     g_config.pages.push_back(p2);
+    g_config.pages.push_back(p3);
     configNormalize();
 }
 
@@ -159,8 +155,8 @@ bool configFromJson(JsonDocument &doc, String &err) {
     }
     DeckConfig c;
     c.deviceName = doc["deviceName"] | "LongDeck";
-    c.cols = doc["cols"] | 6;
-    c.rows = doc["rows"] | 2;
+    c.cols = doc["cols"] | 5;
+    c.rows = doc["rows"] | 1;
     c.brightness = doc["brightness"] | 200;
     c.dimAfter = doc["dimAfter"] | 60;
     c.dimBrightness = doc["dimBrightness"] | 20;
