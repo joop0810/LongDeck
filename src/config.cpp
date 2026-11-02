@@ -120,6 +120,7 @@ void configToJson(JsonDocument &doc) {
     doc["dimBrightness"] = c.dimBrightness;
     doc["layout"] = c.layout;
     doc["typeDelay"] = c.typeDelay;
+    doc["squareTiles"] = c.squareTiles;
     JsonArray pages = doc["pages"].to<JsonArray>();
     for (const DeckPage &p : c.pages) {
         JsonObject jp = pages.add<JsonObject>();
@@ -157,6 +158,7 @@ bool configFromJson(JsonDocument &doc, String &err) {
     c.dimBrightness = doc["dimBrightness"] | 20;
     c.layout = doc["layout"] | "de";
     c.typeDelay = doc["typeDelay"] | 8;
+    c.squareTiles = doc["squareTiles"] | true;
     for (JsonObject jp : doc["pages"].as<JsonArray>()) {
         DeckPage p;
         p.name = jp["name"] | "";

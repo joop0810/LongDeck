@@ -239,9 +239,13 @@ void uiBuild() {
 
     int cols = c.cols, rows = c.rows;
     int w = (SCR_W - 2 * PAD - (cols - 1) * GAP) / cols;
-    int h = (SCR_H - PAD - DOTS_H - (rows - 1) * GAP) / rows;
+    int availH = SCR_H - PAD - DOTS_H;
+    int h = (availH - (rows - 1) * GAP) / rows;
+    if (c.squareTiles && h > w) h = w;  // nicht langziehen – stattdessen Rand oben/unten
     int totalW = cols * w + (cols - 1) * GAP;
+    int totalH = rows * h + (rows - 1) * GAP;
     int x0 = (SCR_W - totalW) / 2;
+    int y0 = PAD + (availH - totalH) / 2;
 
     for (int p = 0; p < s_pageCount; p++) {
         lv_obj_t *tile = lv_tileview_add_tile(s_tv, p, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
@@ -250,7 +254,7 @@ void uiBuild() {
             for (int col = 0; col < cols; col++) {
                 int idx = r * cols + col;
                 if (idx >= (int)page.buttons.size()) continue;
-                createButton(tile, page.buttons[idx], p, idx, x0 + col * (w + GAP), PAD + r * (h + GAP), w, h);
+                createButton(tile, page.buttons[idx], p, idx, x0 + col * (w + GAP), y0 + r * (h + GAP), w, h);
             }
         }
     }

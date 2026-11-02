@@ -8,7 +8,7 @@
 #define LD_MAX_COLS  8
 #define LD_MAX_ROWS  3
 
-#define LONGDECK_VERSION "1.1.1"
+#define LONGDECK_VERSION "1.1.2"
 
 // Aktionstypen einer Taste
 enum ActionType : uint8_t {
@@ -43,6 +43,7 @@ struct DeckPage {
 struct DeckConfig {
     uint8_t cols = 6;
     uint8_t rows = 2;
+    bool squareTiles = true;     // Kacheln nie höher als breit (Rand oben/unten statt langgezogen)
     uint8_t brightness = 200;    // 10..255
     uint16_t dimAfter = 60;      // Sekunden bis Dimmen, 0 = nie
     uint8_t dimBrightness = 20;  // Helligkeit im gedimmten Zustand (0 = aus)
