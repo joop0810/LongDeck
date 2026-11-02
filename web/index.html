@@ -222,7 +222,10 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
 <section id="firmware">
   <div class="card">
     <h2>Firmware installieren / aktualisieren</h2>
-    <p>Board per USB-C anschließen und auf <b>Installieren</b> klicken. Die Tastenbelegung bleibt erhalten, solange „Gerät löschen“ nicht angehakt ist.</p>
+    <p>Die Tastenbelegung bleibt erhalten, solange „Gerät löschen“ nicht angehakt ist.</p>
+    <p><b>Schritt 1 – Flash-Modus</b> (nur nötig, wenn schon eine LongDeck-Firmware läuft): Klicken, „LongDeck“ auswählen. Das Board startet neu, das Display wird dunkel.</p>
+    <button class="btn" id="flashModeBtn" style="margin-bottom:18px">⚡ Flash-Modus starten</button>
+    <p><b>Schritt 2:</b> <b>Installieren</b> klicken und <b>„USB JTAG/serial debug unit“</b> auswählen.</p>
     <esp-web-install-button manifest="manifest.json" id="installBtn">
       <button slot="activate">Installieren</button>
       <span slot="unsupported">Dein Browser unterstützt Web Serial nicht – bitte Chrome oder Edge am PC verwenden.</span>
@@ -360,6 +363,23 @@ if('serial' in navigator){
 setInterval(()=>{if(link&&!link.demo)link.send('ping').catch(()=>{})},3000);
 // Für den Firmware-Installer muss der Port frei sein
 // (Verbindung erst vollständig schließen, dann den Installer starten)
+// Flash-Modus über den 1200-Baud-Trick (funktioniert mit jeder LongDeck-Version, ohne Tasten am Board)
+$('flashModeBtn').onclick=async()=>{
+  if(!('serial' in navigator))return toast('Bitte Chrome oder Edge verwenden',false);
+  if(link&&!link.demo&&!(await disconnect()))return;
+  try{
+    const port=await navigator.serial.requestPort({filters:[{usbVendorId:0x303a}]});
+    if(port.readable)await port.close().catch(()=>{});
+    await port.open({baudRate:1200});
+    await new Promise(r=>setTimeout(r,200));
+    await port.close().catch(()=>{});
+    toast('Board startet im Flash-Modus – jetzt „Installieren“ klicken');
+  }catch(e){
+    if(e.name==='NotFoundError')return;
+    // Board startet beim Öffnen oft sofort neu – dann ist das hier kein echter Fehler
+    toast('Falls das Display jetzt dunkel ist: „Installieren“ klicken. Sonst BOOT/RST-Methode unten nutzen.',true);
+  }
+};
 $('installBtn').addEventListener('click',async e=>{
   if(!link||link.demo)return;
   e.stopImmediatePropagation();e.preventDefault();
