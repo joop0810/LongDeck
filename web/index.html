@@ -228,7 +228,16 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
       <span slot="unsupported">Dein Browser unterstützt Web Serial nicht – bitte Chrome oder Edge am PC verwenden.</span>
       <span slot="not-allowed">Die Seite muss über HTTPS geöffnet werden.</span>
     </esp-web-install-button>
-    <div class="hint" style="margin-top:12px">Wird kein Gerät angezeigt: <b>BOOT</b>-Taste gedrückt halten, USB einstecken, loslassen – dann erneut versuchen. Nach der Installation einmal ab- und wieder anstecken.</div>
+    <div class="card" style="background:var(--panel2);margin:14px 0 0">
+      <b>„Failed to initialize“ oder kein Gerät gefunden?</b> Board von Hand in den Flash-Modus bringen:
+      <ol style="margin-top:8px">
+        <li><b>BOOT</b>-Taste gedrückt halten</li>
+        <li>kurz <b>RST</b> drücken (oder USB-Kabel ab- und wieder anstecken)</li>
+        <li><b>BOOT</b> loslassen – das Display bleibt jetzt dunkel</li>
+        <li><b>Installieren</b> klicken und den Eintrag <b>„USB JTAG/serial debug unit“</b> wählen</li>
+      </ol>
+      <div class="hint">Nach der Installation einmal <b>RST</b> drücken bzw. ab- und wieder anstecken.</div>
+    </div>
     <div class="hint" id="fwVer"></div>
   </div>
 </section>
@@ -336,7 +345,14 @@ if('serial' in navigator){
 }else{$('noSerial').style.display='block'}
 setInterval(()=>{if(link&&!link.demo)link.send('ping').catch(()=>{})},3000);
 // Für den Firmware-Installer muss der Port frei sein
-$('installBtn').addEventListener('click',async e=>{if(link&&!link.demo){if(!(await disconnect()))e.stopImmediatePropagation()}},true);
+// (Verbindung erst vollständig schließen, dann den Installer starten)
+$('installBtn').addEventListener('click',async e=>{
+  if(!link||link.demo)return;
+  e.stopImmediatePropagation();e.preventDefault();
+  if(!(await disconnect()))return;
+  await new Promise(r=>setTimeout(r,300));
+  $('installBtn').querySelector('button[slot=activate]').click();
+},true);
 
 // ------------------------------------------------------------------
 // Editor
