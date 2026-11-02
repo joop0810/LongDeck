@@ -86,6 +86,11 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
     </div>
     <p class="hint" id="noSerial" style="display:none;color:var(--danger);margin-top:18px">Dein Browser unterstützt Web Serial nicht. Bitte Chrome oder Edge am PC verwenden.</p>
   </div>
+  <div class="card" id="diag" style="display:none">
+    <h2>Diagnose</h2>
+    <pre id="diagText" style="white-space:pre-wrap;font-size:12.5px;color:var(--muted);margin:0"></pre>
+    <div class="hint">Bitte diesen Text kopieren und mitschicken, wenn die Verbindung nicht klappt.</div>
+  </div>
   <div class="card">
     <h2>Erstes Mal?</h2>
     <ol>
@@ -269,7 +274,7 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{if(!b.disabled
 // USB-Verbindung (Web Serial), eine JSON-Zeile pro Nachricht
 // ------------------------------------------------------------------
 class SerialLink{
-  constructor(port){this.port=port;this.id=0;this.pending=new Map();this.buf='';this.closed=false}
+  constructor(port){this.port=port;this.id=0;this.pending=new Map();this.buf='';this.closed=false;this.raw=[];this.bytes=0}
   async open(){
     // Port noch von einem früheren Versuch offen? Erst schließen.
     if(this.port.readable||this.port.writable){try{await this.port.close()}catch(e){}}
@@ -286,12 +291,12 @@ class SerialLink{
     const dec=new TextDecoder();
     while(this.port.readable&&!this.closed){
       this.reader=this.port.readable.getReader();
-      try{for(;;){const {value,done}=await this.reader.read();if(done)break;this.buf+=dec.decode(value,{stream:true});let i;while((i=this.buf.indexOf('\n'))>=0){const line=this.buf.slice(0,i).trim();this.buf=this.buf.slice(i+1);this.onLine(line)}}}
+      try{for(;;){const {value,done}=await this.reader.read();if(done)break;this.bytes+=value.length;this.buf+=dec.decode(value,{stream:true});let i;while((i=this.buf.indexOf('\n'))>=0){const line=this.buf.slice(0,i).trim();this.buf=this.buf.slice(i+1);this.onLine(line)}}}
       catch(e){break}finally{this.reader.releaseLock()}
     }
     this.fail('Verbindung getrennt');
   }
-  onLine(line){if(!line.startsWith('{'))return;let m;try{m=JSON.parse(line)}catch(e){return}const p=this.pending.get(m.id);if(p){this.pending.delete(m.id);clearTimeout(p.t);m.ok?p.res(m):p.rej(new Error(m.error||'Fehler'))}}
+  onLine(line){this.raw.push(line);if(this.raw.length>15)this.raw.shift();if(!line.startsWith('{'))return;let m;try{m=JSON.parse(line)}catch(e){return}const p=this.pending.get(m.id);if(p){this.pending.delete(m.id);clearTimeout(p.t);m.ok?p.res(m):p.rej(new Error(m.error||'Fehler'))}}
   fail(msg){for(const p of this.pending.values()){clearTimeout(p.t);p.rej(new Error(msg))}this.pending.clear()}
   async send(cmd,extra={},timeout=15000){
     const id=++this.id;const line=JSON.stringify({id,cmd,...extra})+'\n';
@@ -342,7 +347,12 @@ async function attach(l){
     showTab('keys');
   }catch(e){
     const msg=e.message==='Keine Antwort vom Gerät'?'Das Gerät antwortet nicht – vermutlich läuft noch eine ältere Firmware (vor 1.1). Bitte im Reiter „Firmware“ neu installieren und danach RST drücken.':e.message;
-    toast('Verbindung fehlgeschlagen: '+msg,false);await l.close();link=null;setConnected(false,'nicht verbunden')}
+    toast('Verbindung fehlgeschlagen: '+msg,false);
+    const sig=l.port&&l.port.getSignals?await l.port.getSignals().catch(()=>null):null;
+    const pi=l.port&&l.port.getInfo?l.port.getInfo():{};
+    $('diag').style.display='block';
+    $('diagText').textContent=`Fehler: ${e.message}\nUSB-ID: ${(pi.usbVendorId||0).toString(16)}:${(pi.usbProductId||0).toString(16)}\nEmpfangene Bytes: ${l.bytes||0}\nLetzte Zeilen:\n${(l.raw||[]).join('\n')||'(nichts)'}\nSignale: ${sig?JSON.stringify(sig):'-'}`;
+    await l.close();link=null;setConnected(false,'nicht verbunden')}
   finally{connecting=false}
 }
 async function disconnect(){if(dirty&&!confirm('Ungespeicherte Änderungen verwerfen?'))return false;const l=link;link=null;await l?.close();setConnected(false,'nicht verbunden');return true}
