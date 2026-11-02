@@ -144,69 +144,160 @@ static void styleGlass(lv_obj_t *o, lv_color_t c, int w, int h) {
     lv_obj_set_style_bg_grad_dir(sheen, LV_GRAD_DIR_VER, 0);
 }
 
+// ---------------------------------------------------------------------------
+// Skins
+// ---------------------------------------------------------------------------
+enum Skin { SKIN_MINIMAL, SKIN_SOFT, SKIN_BOLD, SKIN_MONO, SKIN_GLASS, SKIN_FLAT };
+
+static Skin currentSkin() {
+    const String &t = g_config.theme;
+    if (t == "soft") return SKIN_SOFT;
+    if (t == "bold") return SKIN_BOLD;
+    if (t == "mono") return SKIN_MONO;
+    if (t == "glass") return SKIN_GLASS;
+    if (t == "flat") return SKIN_FLAT;
+    return SKIN_MINIMAL;
+}
+
+// Farbe so aufhellen, dass sie als Akzent auf Schwarz gut leuchtet
+static lv_color_t accentOf(lv_color_t c) {
+    uint32_t c32 = lv_color_to32(c);
+    int r = (c32 >> 16) & 0xFF, g = (c32 >> 8) & 0xFF, b = c32 & 0xFF;
+    int mx = max(r, max(g, b));
+    if (mx < 30) return lv_color_hex(0xD4D4D8);  // fast schwarz -> neutrales Hellgrau
+    int mn0 = min(r, min(g, b));
+    if ((mx - mn0) * 10 < mx * 3) return lv_color_hex(0xC8C8CE);  // kaum Farbe -> neutrales Grau
+    // Sättigung erhalten, Helligkeit auf ~ 235 anheben
+    float k = 235.0f / mx;
+    if (k < 1.0f) k = 1.0f;
+    r = min(255, (int)(r * k)); g = min(255, (int)(g * k)); b = min(255, (int)(b * k));
+    // graue Töne (wenig Sättigung) nicht grell machen
+    int mn = min(r, min(g, b));
+    if (max(r, max(g, b)) - mn < 40) { r = g = b = 200; }
+    return lv_color_make(r, g, b);
+}
+
 static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int idx, int x, int y, int w, int h) {
+    Skin skin = currentSkin();
     lv_obj_t *o = lv_obj_create(parent);
     lv_obj_remove_style_all(o);
     lv_obj_set_pos(o, x, y);
     lv_obj_set_size(o, w, h);
     lv_obj_clear_flag(o, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_radius(o, 14, 0);
+    int radius = (skin == SKIN_SOFT || skin == SKIN_BOLD) ? 18 : (skin == SKIN_MINIMAL ? 16 : 14);
+    lv_obj_set_style_radius(o, radius, 0);
     lv_obj_set_style_bg_opa(o, LV_OPA_COVER, 0);
+    lv_obj_set_user_data(o, (void *)(uintptr_t)0);
 
     bool empty = b.type == ACT_NONE && b.label.length() == 0 && b.icon.length() == 0;
-    bool glass = g_config.theme == "glass";
     if (empty) {
-        lv_obj_set_style_bg_color(o, glass ? lv_color_white() : hex(0x0E1014), 0);
-        lv_obj_set_style_bg_opa(o, glass ? 10 : LV_OPA_COVER, 0);
+        if (skin == SKIN_GLASS) {
+            lv_obj_set_style_bg_color(o, lv_color_white(), 0);
+            lv_obj_set_style_bg_opa(o, 10, 0);
+            lv_obj_set_style_border_color(o, lv_color_white(), 0);
+            lv_obj_set_style_border_opa(o, 28, 0);
+        } else {
+            lv_obj_set_style_bg_color(o, hex(0x0A0A0C), 0);
+            lv_obj_set_style_border_color(o, hex(0x1A1A1F), 0);
+        }
         lv_obj_set_style_border_width(o, 1, 0);
-        lv_obj_set_style_border_color(o, glass ? lv_color_white() : hex(0x1E222A), 0);
-        lv_obj_set_style_border_opa(o, glass ? 28 : LV_OPA_COVER, 0);
         lv_obj_clear_flag(o, LV_OBJ_FLAG_CLICKABLE);
         s_btns[page].push_back(o);
         return;
     }
 
-    lv_color_t bg = hex(b.bg);
-    if (glass) {
-        styleGlass(o, bg, w, h);
-        lv_color_t edge = lv_color_mix(lv_color_white(), bg, 150);
-        lv_obj_set_user_data(o, (void *)(uintptr_t)lv_color_to32(edge));
-    } else {
-        lv_obj_set_style_bg_color(o, bg, 0);
-        lv_obj_set_style_bg_grad_color(o, lv_color_darken(bg, 40), 0);
-        lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
-        lv_obj_set_style_bg_color(o, lv_color_lighten(bg, 70), LV_STATE_PRESSED);
-        lv_obj_set_style_bg_grad_color(o, lv_color_lighten(bg, 30), LV_STATE_PRESSED);
-        lv_obj_set_style_transform_width(o, -3, LV_STATE_PRESSED);
-        lv_obj_set_style_transform_height(o, -3, LV_STATE_PRESSED);
-        lv_obj_set_style_border_width(o, 0, 0);
+    lv_color_t base = hex(b.bg);
+    lv_color_t acc = accentOf(base);
+    lv_color_t fg = hex(b.fg);
+    lv_color_t black = lv_color_black();
+    lv_color_t iconColor = fg, labelColor = fg;
+    bool preferFilled = false, showLabel = true;
+    uint32_t edge = 0;  // Randfarbe für uiFlashButton (0 = kein Rand)
+
+    switch (skin) {
+        case SKIN_MINIMAL:
+            lv_obj_set_style_bg_color(o, hex(0x111114), 0);
+            lv_obj_set_style_border_width(o, 1, 0);
+            lv_obj_set_style_border_color(o, hex(0x232329), 0);
+            lv_obj_set_style_bg_color(o, hex(0x1C1C22), LV_STATE_PRESSED);
+            lv_obj_set_style_border_color(o, acc, LV_STATE_PRESSED);
+            iconColor = acc;
+            labelColor = hex(0x9A9AA3);
+            edge = 0x232329;
+            break;
+        case SKIN_SOFT:
+            lv_obj_set_style_bg_color(o, lv_color_mix(acc, black, 38), 0);
+            lv_obj_set_style_bg_color(o, lv_color_mix(acc, black, 75), LV_STATE_PRESSED);
+            iconColor = acc;
+            labelColor = hex(0xE7E7EA);
+            preferFilled = true;
+            break;
+        case SKIN_BOLD:
+            // graue Tasten dunkel halten, sonst ist das weiße Icon kaum lesbar
+            if (lv_color_to32(acc) == lv_color_to32(lv_color_hex(0xC8C8CE)) ||
+                lv_color_to32(acc) == lv_color_to32(lv_color_hex(0xD4D4D8))) acc = hex(0x3F3F46);
+            lv_obj_set_style_bg_color(o, acc, 0);
+            lv_obj_set_style_bg_color(o, lv_color_mix(lv_color_white(), acc, 60), LV_STATE_PRESSED);
+            iconColor = lv_color_white();
+            labelColor = lv_color_white();
+            preferFilled = true;
+            showLabel = b.icon.length() == 0;  // nur Icon, Text nur wenn kein Icon gewählt
+            break;
+        case SKIN_MONO:
+            lv_obj_set_style_bg_color(o, hex(0x161618), 0);
+            lv_obj_set_style_bg_color(o, hex(0x26262A), LV_STATE_PRESSED);
+            iconColor = hex(0xF4F4F5);
+            labelColor = hex(0x71717A);
+            break;
+        case SKIN_GLASS: {
+            styleGlass(o, base, w, h);
+            edge = lv_color_to32(lv_color_mix(lv_color_white(), base, 150)) & 0xFFFFFF;
+            break;
+        }
+        case SKIN_FLAT:
+        default:
+            lv_obj_set_style_bg_color(o, base, 0);
+            lv_obj_set_style_bg_grad_color(o, lv_color_darken(base, 40), 0);
+            lv_obj_set_style_bg_grad_dir(o, LV_GRAD_DIR_VER, 0);
+            lv_obj_set_style_bg_color(o, lv_color_lighten(base, 70), LV_STATE_PRESSED);
+            lv_obj_set_style_bg_grad_color(o, lv_color_lighten(base, 30), LV_STATE_PRESSED);
+            break;
     }
+    if (skin != SKIN_GLASS) {
+        lv_obj_set_style_transform_width(o, -2, LV_STATE_PRESSED);
+        lv_obj_set_style_transform_height(o, -2, LV_STATE_PRESSED);
+    }
+    lv_obj_set_user_data(o, (void *)(uintptr_t)edge);
     lv_obj_add_flag(o, LV_OBJ_FLAG_CLICKABLE);
 
     lv_obj_set_flex_flow(o, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(o, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(o, 2, 0);
+    lv_obj_set_style_pad_row(o, 4, 0);
     lv_obj_set_style_pad_all(o, 4, 0);
 
-    const DeckIcon *dic = deckIconFind(b.icon.c_str());
-    const char *sym = dic ? dic->glyph : nullptr;
-    lv_color_t fg = hex(b.fg);
-    if (sym) {
+    // Icon (bei manchen Skins bevorzugt gefüllt)
+    const DeckIcon *dic = nullptr;
+    if (b.icon.length()) {
+        if (preferFilled && !b.icon.endsWith("-filled")) dic = deckIconFind((b.icon + "-filled").c_str());
+        if (!dic) dic = deckIconFind(b.icon.c_str());
+    }
+    bool hasLabel = showLabel && b.label.length();
+    if (dic) {
         lv_obj_t *ic = lv_label_create(o);
-        lv_label_set_text(ic, sym);
-        // Größe nach verfügbarem Platz: mit Beschriftung etwas kleiner
-        int room = min(w, h) - (b.label.length() ? 22 : 0);
+        lv_label_set_text(ic, dic->glyph);
+        int room = min(w, h) - (hasLabel ? 22 : 0);
         int px = room >= 90 ? 48 : (room >= 48 ? 32 : 24);
+        if (skin == SKIN_BOLD && !hasLabel && room >= 70) px = 48;
         lv_obj_set_style_text_font(ic, deckIconFont(dic, px), 0);
-        lv_obj_set_style_text_color(ic, fg, 0);
+        lv_obj_set_style_text_color(ic, iconColor, 0);
         lv_obj_clear_flag(ic, LV_OBJ_FLAG_CLICKABLE);
     }
-    if (b.label.length()) {
+    if (hasLabel || (!dic && b.label.length())) {
         lv_obj_t *lb = lv_label_create(o);
         lv_label_set_text(lb, b.label.c_str());
-        bool big = !sym && b.label.length() <= 8 && b.label.indexOf('\n') < 0 && w >= 80;
+        bool big = !dic && b.label.length() <= 8 && b.label.indexOf('\n') < 0 && w >= 80;
         lv_obj_set_style_text_font(lb, big ? &font_de_20 : &font_de_14, 0);
-        lv_obj_set_style_text_color(lb, fg, 0);
+        lv_obj_set_style_text_color(lb, dic ? labelColor : iconColor, 0);
         lv_obj_set_style_text_align(lb, LV_TEXT_ALIGN_CENTER, 0);
         lv_label_set_long_mode(lb, LV_LABEL_LONG_WRAP);
         lv_obj_set_width(lb, w - 8);
@@ -323,7 +414,7 @@ void uiBuild() {
 
     lv_obj_t *scr = lv_scr_act();
     lv_obj_set_style_bg_color(scr, hex(0x000000), 0);
-    bool glassTheme = g_config.theme == "glass";
+    bool glassTheme = currentSkin() == SKIN_GLASS;
     if (glassTheme) renderBackdrop();
     if (glassTheme && s_backdropBuf) {
         if (!s_backdrop) {
@@ -347,7 +438,7 @@ void uiBuild() {
 
     s_tv = lv_tileview_create(scr);
     lv_obj_set_size(s_tv, SCR_W, SCR_H);
-    lv_obj_set_style_bg_color(s_tv, hex(0x000000), 0);
+    lv_obj_set_style_bg_color(s_tv, hex(currentSkin() == SKIN_BOLD ? 0x0A0A0B : 0x000000), 0);
     lv_obj_set_style_bg_opa(s_tv, glassTheme ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
     lv_obj_set_scrollbar_mode(s_tv, LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_event_cb(s_tv, onTileChanged, LV_EVENT_VALUE_CHANGED, nullptr);
@@ -433,15 +524,13 @@ void uiToast(const char *msg, bool ok) {
 
 static void flashOff(lv_timer_t *t) {
     lv_obj_t *o = (lv_obj_t *)t->user_data;
-    // Objekt könnte inzwischen durch Neuaufbau gelöscht sein -> nur zurücksetzen, wenn noch gültig
+    // Objekt könnte inzwischen durch Neuaufbau gelöscht sein
     if (!lv_obj_is_valid(o)) return;
-    bool glass = g_config.theme == "glass";
-    lv_obj_set_style_border_width(o, glass ? 1 : 0, 0);
+    uint32_t edge = (uint32_t)(uintptr_t)lv_obj_get_user_data(o);
+    bool glass = currentSkin() == SKIN_GLASS;
+    lv_obj_set_style_border_width(o, edge ? 1 : 0, 0);
     lv_obj_set_style_border_opa(o, glass ? 120 : LV_OPA_COVER, 0);
-    if (t->user_data) {
-        // ursprüngliche Randfarbe steht im Objekt-User-Data
-        lv_obj_set_style_border_color(o, lv_color_hex((uint32_t)(uintptr_t)lv_obj_get_user_data(o)), 0);
-    }
+    if (edge) lv_obj_set_style_border_color(o, lv_color_hex(edge), 0);
 }
 
 void uiFlashButton(int page, int button, bool ok) {

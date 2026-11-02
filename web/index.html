@@ -34,6 +34,7 @@ section{display:none}section.on{display:block}
 .deck.glass{background:radial-gradient(ellipse 42% 95% at 14% 5%,rgba(43,89,240,.55),transparent 70%),radial-gradient(ellipse 45% 100% at 88% 95%,rgba(138,63,252,.5),transparent 70%),radial-gradient(ellipse 32% 70% at 52% 105%,rgba(16,200,176,.3),transparent 70%),linear-gradient(#06070b,#0c0e15)}
 .deck.glass .key{background-image:none;overflow:hidden}
 .deck.glass .key::before{content:"";position:absolute;left:1px;right:1px;top:1px;height:45%;border-radius:inherit;background:linear-gradient(rgba(255,255,255,.11),var(--sheen,transparent));pointer-events:none}
+.deck:not(.glass) .key.empty{background:#0a0a0c!important;border:1px solid #1a1a1f}
 .deck.glass .key.empty{background:rgba(255,255,255,.04)!important;border:1px solid rgba(255,255,255,.11)}
 .deck.glass .key.empty::before{display:none}
 .key{border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;text-align:center;font-size:12px;line-height:1.15;white-space:pre-line;overflow:hidden;border:2px solid transparent;user-select:none;padding:3px;background-image:linear-gradient(rgba(255,255,255,.06),rgba(0,0,0,.25))}
@@ -225,7 +226,7 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
     <div class="grid2">
       <div><label>Spalten (1–8)</label><input type="number" id="sCols" min="1" max="8"></div>
       <div><label>Zeilen (1–3)</label><input type="number" id="sRows" min="1" max="3"></div>
-      <div><label>Design</label><select id="sTheme"><option value="glass">Glas (modern, leuchtend)</option><option value="flat">Flach (klassisch)</option></select></div>
+      <div><label>Skin</label><select id="sTheme"><option value="minimal">Minimal – schwarz, Icon in Farbe</option><option value="soft">Soft Color – zart getönt, gefüllte Icons</option><option value="bold">Bold – volle Farbe, nur Icon</option><option value="mono">Mono – weiß/grau, ganz clean</option><option value="glass">Glas – leuchtend, transparent</option><option value="flat">Klassisch – farbige Kacheln</option></select></div>
       <div><label>Kachelform</label><select id="sSquare"><option value="1">Quadratisch – Rand oben/unten statt langgezogen</option><option value="0">Ganze Höhe ausfüllen</option></select></div>
       <div><label>Helligkeit</label><input type="range" id="sBright" min="10" max="255"></div>
       <div><label>Dimmen nach (Sekunden, 0 = nie)</label><input type="number" id="sDim" min="0" max="3600"></div>
@@ -302,6 +303,8 @@ const ICON_ALIAS={audio:"music",ok:"check",close:"x",drive:"database",refresh:"a
 const ICON_DE={laut:"volume",lautstärke:"volume",ton:"volume",stumm:"volume-off",mikro:"microphone",mikrofon:"microphone",kopfhörer:"headphones",musik:"music",abspielen:"player-play",pause:"player-pause",weiter:"player-track-next",zurück:"player-track-prev",kamera:"camera",bild:"photo",licht:"bulb|lamp|sun",lampe:"lamp",heizung:"temperature|flame",temperatur:"temperature",tür:"door",fenster:"window",haus:"home",ordner:"folder",datei:"file",einstellungen:"settings",schloss:"lock",sperren:"lock",suche:"search",rechner:"calculator",kalender:"calendar",uhr:"clock",glocke:"bell",stern:"star",herz:"heart",pfeil:"arrow",löschen:"trash",müll:"trash",kopieren:"copy",einfügen:"clipboard",speichern:"device-floppy",telefon:"phone",nachricht:"message",chat:"message",spiel:"device-gamepad",controller:"device-gamepad",strom:"bolt",steckdose:"plug",sonne:"sun",mond:"moon",wasser:"droplet",tastatur:"keyboard",maus:"mouse",bildschirm:"device-desktop",aufnahme:"player-record",stream:"broadcast",live:"broadcast",szene:"layout-grid",pc:"device-desktop",computer:"device-desktop",handy:"device-mobile",ventilator:"propeller",lüfter:"propeller",staubsauger:"vacuum-cleaner",waschmaschine:"wash-machine",kaffee:"coffee",bett:"bed",sofa:"sofa",pflanze:"plant",einkauf:"shopping-cart",geld:"coin",welt:"world",zahl:"number",rakete:"rocket",pinsel:"brush",farbe:"palette",stift:"pencil",schere:"scissors"};
 function hexRgb(h){h=(h||'#2A2F3A').replace('#','');return [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]}
 function mix(a,b,m){return a.map((v,i)=>Math.round((v*m+b[i]*(255-m))/255))}
+function accentOf(c){const mx=Math.max(...c),mn=Math.min(...c);if(mx<30)return[212,212,216];if((mx-mn)/mx<0.3)return[200,200,206];const k=Math.max(1,235/mx);let r=c.map(v=>Math.min(255,Math.round(v*k)));if(Math.max(...r)-Math.min(...r)<40)r=[200,200,200];return r}
+function rgb(c){return `rgb(${c[0]},${c[1]},${c[2]})`}
 function rgba(c,a){return `rgba(${c[0]},${c[1]},${c[2]},${a})`}
 function iconName(n){return n?(ICON_ALIAS[n]||n):''}
 function iconEl(n,cls){n=iconName(n);const d=ICON_CP[n];const i=document.createElement('i');if(!d)return null;i.className=(d[1]==='f'?'ti-f':'ti-o')+(cls?' '+cls:'');i.textContent=String.fromCodePoint(d[0]);return i}
@@ -357,9 +360,9 @@ class SerialLink{
 }
 
 // Demo ohne Gerät
-const DEMO_CFG={deviceName:"LongDeck",cols:6,rows:2,squareTiles:true,theme:"glass",brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
- {name:"Start",buttons:[["Leiser","volume_mid","#1F4E79","media","VOL_DOWN"],["Stumm","mute","#7A1F2B","media","MUTE"],["Lauter","volume_max","#1F4E79","media","VOL_UP"],["Zurück","prev","#2E5E3A","media","PREV"],["Play","play","#2E7D32","media","PLAY_PAUSE"],["Weiter","next","#2E5E3A","media","NEXT"],["Kopieren","copy","#3A3F4B","hotkey","CTRL+C"],["Einfügen","paste","#3A3F4B","hotkey","CTRL+V"],["Screenshot","image","#5B3A7A","hotkey","GUI+SHIFT+S"],["Task-\nManager","list","#6B4E16","hotkey","CTRL+SHIFT+ESC"],["Desktop","home","#3A3F4B","hotkey","GUI+D"],["Sperren","power","#7A1F2B","hotkey","GUI+L"]]},
- {name:"Werkzeuge",buttons:[["Explorer","directory","#6B4E16","hotkey","GUI+E"],["Editor","edit","#3A3F4B","open","notepad"],["Einstell.","settings","#3A3F4B","hotkey","GUI+I"],["Rechner","keyboard","#1F4E79","open","calc"],["Gruß","edit","#2E5E3A","text","Viele Grüße\n"],["Mic aus","mute","#7A1F2B","hotkey","CTRL+SHIFT+M"],["Rückgängig","loop","#3A3F4B","hotkey","CTRL+Z"],["Wieder-\nholen","refresh","#3A3F4B","hotkey","CTRL+Y"],["Speichern","save","#1F4E79","hotkey","CTRL+S"],["Neuer Tab","plus","#3A3F4B","hotkey","CTRL+T"],["Alt+Tab","shuffle","#3A3F4B","hotkey","ALT+TAB"],["Start","home","#2E7D32","page","1"]]}]};
+const DEMO_CFG={deviceName:"LongDeck",cols:6,rows:2,squareTiles:true,theme:"minimal",brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
+ {name:"Start",buttons:[["Leiser","volume_mid","#3B82F6","media","VOL_DOWN"],["Stumm","mute","#EF4444","media","MUTE"],["Lauter","volume_max","#3B82F6","media","VOL_UP"],["Zurück","prev","#22C55E","media","PREV"],["Play","play","#22C55E","media","PLAY_PAUSE"],["Weiter","next","#22C55E","media","NEXT"],["Kopieren","copy","#A1A1AA","hotkey","CTRL+C"],["Einfügen","paste","#A1A1AA","hotkey","CTRL+V"],["Screenshot","image","#A855F7","hotkey","GUI+SHIFT+S"],["Task-\nManager","list","#F59E0B","hotkey","CTRL+SHIFT+ESC"],["Desktop","home","#A1A1AA","hotkey","GUI+D"],["Sperren","power","#EF4444","hotkey","GUI+L"]]},
+ {name:"Werkzeuge",buttons:[["Explorer","directory","#F59E0B","hotkey","GUI+E"],["Editor","edit","#A1A1AA","open","notepad"],["Einstell.","settings","#A1A1AA","hotkey","GUI+I"],["Rechner","keyboard","#3B82F6","open","calc"],["Gruß","edit","#22C55E","text","Viele Grüße\n"],["Mic aus","mute","#EF4444","hotkey","CTRL+SHIFT+M"],["Rückgängig","loop","#A1A1AA","hotkey","CTRL+Z"],["Wieder-\nholen","refresh","#A1A1AA","hotkey","CTRL+Y"],["Speichern","save","#3B82F6","hotkey","CTRL+S"],["Neuer Tab","plus","#A1A1AA","hotkey","CTRL+T"],["Alt+Tab","shuffle","#A1A1AA","hotkey","ALT+TAB"],["Start","home","#22C55E","page","1"]]}]};
 DEMO_CFG.pages.forEach(p=>p.buttons=p.buttons.map(([label,icon,bg,type,value])=>({label,icon,bg,fg:"#FFFFFF",type,value})));
 class DemoLink{
   constructor(){this.cfg=JSON.parse(JSON.stringify(DEMO_CFG));this.demo=true}
@@ -474,7 +477,7 @@ function renderPages(){
   $('pageName').value=cfg.pages[page].name;
 }
 function renderDeck(){
-  const d=$('deck');d.innerHTML='';const glass=(cfg.theme||'glass')==='glass';d.classList.toggle('glass',glass);
+  const d=$('deck');d.innerHTML='';const skin=cfg.theme||'minimal',glass=skin==='glass';d.dataset.skin=skin;d.classList.toggle('glass',glass);
   // gleiche Aufteilung wie auf dem Gerät (640x180, ui.cpp)
   const W=640,H=180,PAD=6,GAP=6,DOTS=12,cols=cfg.cols,rows=cfg.rows;
   const w=Math.floor((W-2*PAD-(cols-1)*GAP)/cols),availH=H-PAD-DOTS;
@@ -489,10 +492,18 @@ function renderDeck(){
       k.style.borderColor=rgba(mix(wht,c,150),.47);k.style.borderWidth='1px';
       k.style.boxShadow=`0 3px 20px -3px ${rgba(c,.4)}`;k.style.setProperty('--sheen',rgba(c,.11));
       if(i===sel){k.style.borderColor='var(--accent)';k.style.borderWidth='2px'}}
-    else if(!glass)k.style.background=b.bg;
+    else if(!empty){const c=hexRgb(b.bg),a=accentOf(c),blk=[0,0,0];
+      if(skin==='minimal'){k.style.background='#111114';k.style.border='1px solid #232329';k.style.borderRadius='16px';k.dataset.ic=rgb(a);k.dataset.lb='#9a9aa3'}
+      else if(skin==='soft'){k.style.background=rgb(mix(a,blk,38));k.style.borderRadius='18px';k.dataset.ic=rgb(a);k.dataset.lb='#e7e7ea';k.dataset.filled=1}
+      else if(skin==='bold'){const ga=(a.join()==='200,200,206'||a.join()==='212,212,216')?[63,63,70]:a;k.style.background=rgb(ga);k.style.borderRadius='18px';k.dataset.ic='#fff';k.dataset.lb='#fff';k.dataset.filled=1;if(b.icon)k.dataset.nolabel=1}
+      else if(skin==='mono'){k.style.background='#161618';k.dataset.ic='#f4f4f5';k.dataset.lb='#71717a'}
+      else {k.style.background=b.bg}
+      k.style.backgroundImage='none';if(i===sel)k.style.boxShadow='0 0 0 2px var(--accent)'}
     const r=Math.floor(i/cols),c=i%cols;k.style.left=pct(x0+c*(w+GAP),W);k.style.top=pct(y0+r*(h+GAP),H);k.style.width=pct(w,W);k.style.height=pct(h,H);k.style.fontSize='clamp(8px,1.9cqw,12px)';
-    const ie=b.icon?iconEl(b.icon,'ic'):null;if(ie){const room=Math.min(w,h)-(b.label?22:0);const px=room>=90?48:(room>=48?32:24);ie.style.fontSize=(px/W*100)+'cqw';k.appendChild(ie)}
-    const l=document.createElement('div');l.textContent=b.label||(empty?'+':'');k.appendChild(l);
+    let iname=b.icon;if(iname&&k.dataset.filled&&!iname.endsWith('-filled')&&ICON_CP[iconName(iname)+'-filled'])iname=iconName(iname)+'-filled';
+    const ie=iname?iconEl(iname,'ic'):null;const showLb=!k.dataset.nolabel&&b.label;
+    if(ie){const room=Math.min(w,h)-(showLb?22:0);let px=room>=90?48:(room>=48?32:24);if(skin==='bold'&&!showLb&&room>=70)px=48;ie.style.fontSize=(px/W*100)+'cqw';if(k.dataset.ic)ie.style.color=k.dataset.ic;k.appendChild(ie)}
+    if(!ie||showLb||empty){const l=document.createElement('div');l.textContent=b.label||(empty?'+':'');if(ie&&k.dataset.lb)l.style.color=k.dataset.lb;else if(k.dataset.ic)l.style.color=k.dataset.ic;k.appendChild(l)}
     k.onclick=()=>{sel=i;render()};
     k.ondragstart=()=>{dragFrom=i;k.classList.add('drag')};k.ondragend=()=>k.classList.remove('drag');
     k.ondragover=e=>e.preventDefault();
@@ -589,7 +600,7 @@ $('edHotkey').addEventListener('keydown',e=>{if(!recording)return;e.preventDefau
   $('edHotkey').value=[...m,k].join('+');stopRec();readEditor()});
 
 // Einstellungen
-function renderSettings(){$('sCols').value=cfg.cols;$('sRows').value=cfg.rows;$('sBright').value=cfg.brightness;$('sDim').value=cfg.dimAfter;$('sDimB').value=cfg.dimBrightness;$('sName').value=cfg.deviceName;$('sLayout').value=cfg.layout;$('sDelay').value=cfg.typeDelay;$('sSquare').value=cfg.squareTiles===false?'0':'1';$('sTheme').value=cfg.theme||'glass'}
+function renderSettings(){$('sCols').value=cfg.cols;$('sRows').value=cfg.rows;$('sBright').value=cfg.brightness;$('sDim').value=cfg.dimAfter;$('sDimB').value=cfg.dimBrightness;$('sName').value=cfg.deviceName;$('sLayout').value=cfg.layout;$('sDelay').value=cfg.typeDelay;$('sSquare').value=cfg.squareTiles===false?'0':'1';$('sTheme').value=cfg.theme||'minimal'}
 function resizeGrid(cols,rows){
   cols=Math.min(8,Math.max(1,cols|0));rows=Math.min(3,Math.max(1,rows|0));if(cols===cfg.cols&&rows===cfg.rows)return;
   cfg.pages.forEach(p=>{const old=p.buttons,nb=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)nb.push(r<cfg.rows&&c<cfg.cols?old[r*cfg.cols+c]:blank());p.buttons=nb});
