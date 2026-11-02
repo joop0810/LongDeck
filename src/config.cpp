@@ -95,7 +95,7 @@ void configNormalize() {
     c.brightness = max<uint8_t>(c.brightness, 10);
     c.typeDelay = constrain(c.typeDelay, 2, 200);
     if (c.layout != "de" && c.layout != "us") c.layout = "de";
-    if (c.theme != "minimal" && c.theme != "soft" && c.theme != "bold" && c.theme != "mono" && c.theme != "glass" && c.theme != "flat") c.theme = "minimal";
+    if (c.theme != "minimal" && c.theme != "soft" && c.theme != "bold" && c.theme != "mono" && c.theme != "glass" && c.theme != "flat" && !c.theme.startsWith("frost")) c.theme = "minimal";
     if (c.deviceName.length() == 0) c.deviceName = "LongDeck";
     if (c.pages.empty()) {
         DeckPage p;

@@ -31,8 +31,9 @@ section{display:none}section.on{display:block}
 .chip.add{color:var(--muted)}
 .deck{background:#000;border-radius:16px;position:relative;aspect-ratio:640/180;max-width:100%;border:6px solid #23272f;container-type:inline-size}
 .deck .key{position:absolute}
-.deck.glass{background:radial-gradient(ellipse 42% 95% at 14% 5%,rgba(43,89,240,.55),transparent 70%),radial-gradient(ellipse 45% 100% at 88% 95%,rgba(138,63,252,.5),transparent 70%),radial-gradient(ellipse 32% 70% at 52% 105%,rgba(16,200,176,.3),transparent 70%),linear-gradient(#06070b,#0c0e15)}
+.deck.glass{background:radial-gradient(ellipse 42% 95% at 14% 5%,rgba(43,89,240,.45),transparent 70%),radial-gradient(ellipse 45% 100% at 88% 95%,rgba(138,63,252,.42),transparent 70%),radial-gradient(ellipse 32% 70% at 52% 105%,rgba(16,200,176,.25),transparent 70%),linear-gradient(#06070b,#0c0e15)}
 .deck.glass .key{background-image:none;overflow:hidden}
+.deck.glass .key.frost::before{display:none}
 .deck.glass .key::before{content:"";position:absolute;left:1px;right:1px;top:1px;height:45%;border-radius:inherit;background:linear-gradient(rgba(255,255,255,.11),var(--sheen,transparent));pointer-events:none}
 .deck:not(.glass) .key.empty{background:#0a0a0c!important;border:1px solid #1a1a1f}
 .deck.glass .key.empty{background:rgba(255,255,255,.04)!important;border:1px solid rgba(255,255,255,.11)}
@@ -226,7 +227,7 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
     <div class="grid2">
       <div><label>Spalten (1–8)</label><input type="number" id="sCols" min="1" max="8"></div>
       <div><label>Zeilen (1–3)</label><input type="number" id="sRows" min="1" max="3"></div>
-      <div><label>Skin</label><select id="sTheme"><option value="minimal">Minimal – schwarz, Icon in Farbe</option><option value="soft">Soft Color – zart getönt, gefüllte Icons</option><option value="bold">Bold – volle Farbe, nur Icon</option><option value="mono">Mono – weiß/grau, ganz clean</option><option value="glass">Glas – leuchtend, transparent</option><option value="flat">Klassisch – farbige Kacheln</option></select></div>
+      <div><label>Skin</label><select id="sTheme"><option value="minimal">Minimal – schwarz, Icon in Farbe</option><option value="soft">Soft Color – zart getönt, gefüllte Icons</option><option value="bold">Bold – volle Farbe, nur Icon</option><option value="mono">Mono – weiß/grau, ganz clean</option><option value="frost">Milchglas – dezent, Icon in Farbe</option><option value="frost-tint">Milchglas getönt – leicht gefärbt, Icon weiß</option><option value="frost-light">Helles Glas – schwarze Icons</option><option value="frost-dark">Dunkles Glas – weiße Icons</option><option value="glass">Glas mit Glanz – leuchtend</option><option value="flat">Klassisch – farbige Kacheln</option></select></div>
       <div><label>Kachelform</label><select id="sSquare"><option value="1">Quadratisch – Rand oben/unten statt langgezogen</option><option value="0">Ganze Höhe ausfüllen</option></select></div>
       <div><label>Helligkeit</label><input type="range" id="sBright" min="10" max="255"></div>
       <div><label>Dimmen nach (Sekunden, 0 = nie)</label><input type="number" id="sDim" min="0" max="3600"></div>
@@ -477,7 +478,7 @@ function renderPages(){
   $('pageName').value=cfg.pages[page].name;
 }
 function renderDeck(){
-  const d=$('deck');d.innerHTML='';const skin=cfg.theme||'minimal',glass=skin==='glass';d.dataset.skin=skin;d.classList.toggle('glass',glass);
+  const d=$('deck');d.innerHTML='';const skin=cfg.theme||'minimal',glass=skin==='glass',frost=skin.startsWith('frost');d.classList.toggle('glass',glass||frost);d.dataset.skin=skin;
   // gleiche Aufteilung wie auf dem Gerät (640x180, ui.cpp)
   const W=640,H=180,PAD=6,GAP=6,DOTS=12,cols=cfg.cols,rows=cfg.rows;
   const w=Math.floor((W-2*PAD-(cols-1)*GAP)/cols),availH=H-PAD-DOTS;
@@ -496,6 +497,12 @@ function renderDeck(){
       if(skin==='minimal'){k.style.background='#111114';k.style.border='1px solid #232329';k.style.borderRadius='16px';k.dataset.ic=rgb(a);k.dataset.lb='#9a9aa3'}
       else if(skin==='soft'){k.style.background=rgb(mix(a,blk,38));k.style.borderRadius='18px';k.dataset.ic=rgb(a);k.dataset.lb='#e7e7ea';k.dataset.filled=1}
       else if(skin==='bold'){const ga=(a.join()==='200,200,206'||a.join()==='212,212,216')?[63,63,70]:a;k.style.background=rgb(ga);k.style.borderRadius='18px';k.dataset.ic='#fff';k.dataset.lb='#fff';k.dataset.filled=1;if(b.icon)k.dataset.nolabel=1}
+      else if(frost){let f=[255,255,255],o=.086,bc=[255,255,255],bo=.1;
+        if(skin==='frost'){k.dataset.ic=rgb(a);k.dataset.lb='#c9cbd1'}
+        if(skin==='frost-tint'){f=a;o=.18;bc=a;bo=.24;k.dataset.ic='#fff';k.dataset.lb='#edeef2'}
+        if(skin==='frost-light'){f=[244,245,248];o=.8;bo=0;k.dataset.ic='#111216';k.dataset.lb='#4a4d55';k.dataset.filled=1}
+        if(skin==='frost-dark'){f=[0,0,0];o=.47;bo=.08;k.dataset.ic='#f4f4f5';k.dataset.lb='#9a9ca5'}
+        k.style.background=rgba(f,o);k.style.border=bo?`1px solid ${rgba(bc,bo)}`:'none';k.style.borderRadius='14px';k.classList.add('frost')}
       else if(skin==='mono'){k.style.background='#161618';k.dataset.ic='#f4f4f5';k.dataset.lb='#71717a'}
       else {k.style.background=b.bg}
       k.style.backgroundImage='none';if(i===sel)k.style.boxShadow='0 0 0 2px var(--accent)'}

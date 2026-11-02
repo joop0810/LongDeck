@@ -71,9 +71,9 @@ static void renderBackdrop() {
     s_backdropBuf = (lv_color_t *)ps_malloc(sizeof(lv_color_t) * SCR_W * SCR_H);
     if (!s_backdropBuf) return;
     const Blob blobs[] = {
-        {90, 10, 260, 0x2B, 0x59, 0xF0, 0.55f},   // Blau oben links
-        {560, 170, 280, 0x8A, 0x3F, 0xFC, 0.50f},  // Violett unten rechts
-        {330, 190, 200, 0x10, 0xC8, 0xB0, 0.30f},  // Türkis unten Mitte
+        {90, 10, 260, 0x2B, 0x59, 0xF0, 0.45f},   // Blau oben links
+        {560, 170, 280, 0x8A, 0x3F, 0xFC, 0.42f},  // Violett unten rechts
+        {330, 190, 200, 0x10, 0xC8, 0xB0, 0.25f},  // Türkis unten Mitte
     };
     for (int y = 0; y < SCR_H; y++) {
         // Grundverlauf: fast schwarz, unten minimal heller
@@ -147,7 +147,9 @@ static void styleGlass(lv_obj_t *o, lv_color_t c, int w, int h) {
 // ---------------------------------------------------------------------------
 // Skins
 // ---------------------------------------------------------------------------
-enum Skin { SKIN_MINIMAL, SKIN_SOFT, SKIN_BOLD, SKIN_MONO, SKIN_GLASS, SKIN_FLAT };
+enum Skin { SKIN_MINIMAL, SKIN_SOFT, SKIN_BOLD, SKIN_MONO, SKIN_GLASS, SKIN_FLAT,
+            SKIN_FROST, SKIN_FROST_TINT, SKIN_FROST_LIGHT, SKIN_FROST_DARK };
+static bool skinHasBackdrop(int s) { return s == SKIN_GLASS || s >= SKIN_FROST; }
 
 static Skin currentSkin() {
     const String &t = g_config.theme;
@@ -155,6 +157,10 @@ static Skin currentSkin() {
     if (t == "bold") return SKIN_BOLD;
     if (t == "mono") return SKIN_MONO;
     if (t == "glass") return SKIN_GLASS;
+    if (t == "frost") return SKIN_FROST;
+    if (t == "frost-tint") return SKIN_FROST_TINT;
+    if (t == "frost-light") return SKIN_FROST_LIGHT;
+    if (t == "frost-dark") return SKIN_FROST_DARK;
     if (t == "flat") return SKIN_FLAT;
     return SKIN_MINIMAL;
 }
@@ -191,11 +197,11 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
 
     bool empty = b.type == ACT_NONE && b.label.length() == 0 && b.icon.length() == 0;
     if (empty) {
-        if (skin == SKIN_GLASS) {
+        if (skinHasBackdrop(skin)) {
             lv_obj_set_style_bg_color(o, lv_color_white(), 0);
-            lv_obj_set_style_bg_opa(o, 10, 0);
+            lv_obj_set_style_bg_opa(o, 8, 0);
             lv_obj_set_style_border_color(o, lv_color_white(), 0);
-            lv_obj_set_style_border_opa(o, 28, 0);
+            lv_obj_set_style_border_opa(o, 18, 0);
         } else {
             lv_obj_set_style_bg_color(o, hex(0x0A0A0C), 0);
             lv_obj_set_style_border_color(o, hex(0x1A1A1F), 0);
@@ -223,7 +229,7 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
             lv_obj_set_style_border_color(o, acc, LV_STATE_PRESSED);
             iconColor = acc;
             labelColor = hex(0x9A9AA3);
-            edge = 0x232329;
+            edge = 0xFF232329;
             break;
         case SKIN_SOFT:
             lv_obj_set_style_bg_color(o, lv_color_mix(acc, black, 38), 0);
@@ -251,7 +257,31 @@ static void createButton(lv_obj_t *parent, const DeckButton &b, int page, int id
             break;
         case SKIN_GLASS: {
             styleGlass(o, base, w, h);
-            edge = lv_color_to32(lv_color_mix(lv_color_white(), base, 150)) & 0xFFFFFF;
+            edge = (120u << 24) | (lv_color_to32(lv_color_mix(lv_color_white(), base, 150)) & 0xFFFFFF);
+            break;
+        }
+        case SKIN_FROST:        // Milchglas: neutral, Icon in Farbe
+        case SKIN_FROST_TINT:   // Milchglas in Tastenfarbe getönt, Icon weiß
+        case SKIN_FROST_LIGHT:  // helles Glas, schwarze Icons
+        case SKIN_FROST_DARK: { // dunkles Glas, weiße Icons
+            lv_color_t white = lv_color_white();
+            lv_color_t fill = white;
+            uint8_t opa = 22, opaP = 45, bOpa = 26;
+            lv_color_t bcol = white;
+            if (skin == SKIN_FROST) { iconColor = acc; labelColor = hex(0xC9CBD1); }
+            if (skin == SKIN_FROST_TINT) { fill = acc; opa = 46; opaP = 90; bcol = acc; bOpa = 60; iconColor = white; labelColor = hex(0xEDEEF2); }
+            if (skin == SKIN_FROST_LIGHT) { fill = hex(0xF4F5F8); opa = 205; opaP = 245; bOpa = 0; iconColor = hex(0x111216); labelColor = hex(0x4A4D55); preferFilled = true; }
+            if (skin == SKIN_FROST_DARK) { fill = lv_color_black(); opa = 120; opaP = 170; bOpa = 20; iconColor = hex(0xF4F4F5); labelColor = hex(0x9A9CA5); }
+            lv_obj_set_style_bg_color(o, fill, 0);
+            lv_obj_set_style_bg_opa(o, opa, 0);
+            lv_obj_set_style_bg_opa(o, opaP, LV_STATE_PRESSED);
+            if (bOpa) {
+                lv_obj_set_style_border_width(o, 1, 0);
+                lv_obj_set_style_border_color(o, bcol, 0);
+                lv_obj_set_style_border_opa(o, bOpa, 0);
+                lv_obj_set_style_border_opa(o, min(255, bOpa * 3), LV_STATE_PRESSED);
+                edge = ((uint32_t)bOpa << 24) | (lv_color_to32(bcol) & 0xFFFFFF);
+            }
             break;
         }
         case SKIN_FLAT:
@@ -414,7 +444,7 @@ void uiBuild() {
 
     lv_obj_t *scr = lv_scr_act();
     lv_obj_set_style_bg_color(scr, hex(0x000000), 0);
-    bool glassTheme = currentSkin() == SKIN_GLASS;
+    bool glassTheme = skinHasBackdrop(currentSkin());
     if (glassTheme) renderBackdrop();
     if (glassTheme && s_backdropBuf) {
         if (!s_backdrop) {
@@ -526,11 +556,12 @@ static void flashOff(lv_timer_t *t) {
     lv_obj_t *o = (lv_obj_t *)t->user_data;
     // Objekt könnte inzwischen durch Neuaufbau gelöscht sein
     if (!lv_obj_is_valid(o)) return;
-    uint32_t edge = (uint32_t)(uintptr_t)lv_obj_get_user_data(o);
-    bool glass = currentSkin() == SKIN_GLASS;
+    uint32_t edge = (uint32_t)(uintptr_t)lv_obj_get_user_data(o);  // Bits 24-31: Deckkraft, 0-23: Farbe
     lv_obj_set_style_border_width(o, edge ? 1 : 0, 0);
-    lv_obj_set_style_border_opa(o, glass ? 120 : LV_OPA_COVER, 0);
-    if (edge) lv_obj_set_style_border_color(o, lv_color_hex(edge), 0);
+    if (edge) {
+        lv_obj_set_style_border_opa(o, edge >> 24, 0);
+        lv_obj_set_style_border_color(o, lv_color_hex(edge & 0xFFFFFF), 0);
+    }
 }
 
 void uiFlashButton(int page, int button, bool ok) {
