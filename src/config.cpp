@@ -131,6 +131,7 @@ void configToJson(JsonDocument &doc) {
     doc["rotation"] = c.rotation;
     doc["swipe"] = c.swipe;
     doc["pwmFreq"] = c.pwmFreq;
+    doc["statusLed"] = c.statusLed;
     JsonArray pages = doc["pages"].to<JsonArray>();
     for (const DeckPage &p : c.pages) {
         JsonObject jp = pages.add<JsonObject>();
@@ -185,6 +186,7 @@ bool configFromJson(JsonDocument &doc, String &err) {
     c.rotation = doc["rotation"] | 0;
     c.swipe = doc["swipe"] | "fast";
     c.pwmFreq = doc["pwmFreq"] | 25000;
+    c.statusLed = doc["statusLed"] | false;
     for (JsonObject jp : doc["pages"].as<JsonArray>()) {
         DeckPage p;
         p.name = jp["name"] | "";

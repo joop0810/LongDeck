@@ -11,6 +11,7 @@
 #include "protocol.h"
 #include "ui.h"
 #include "log.h"
+#include "driver/i2c.h"
 
 // Wird vom LilyGO-Displaytreiber referenziert
 void my_print(const char *buf) { LOGF("%s", buf); }
@@ -58,6 +59,22 @@ static void backlightConfigure(uint32_t freq) {
 static void backlightBegin() {
     backlightConfigure(g_config.pwmFreq);
     backlightSet(0);
+}
+
+// ---------------------------------------------------------------------------
+// Lade-Chip SY6970 (I2C 0x6A, gleicher Bus wie der Touch): Status-LED abschalten.
+// Ohne Akku blinkt die grüne Lade-LED dauernd. REG07: Bit 6 = LED aus, Bits 5:4 = Watchdog
+// (abschalten, sonst setzt der Chip nach 40 s alles zurück und die LED blinkt wieder).
+// ---------------------------------------------------------------------------
+static const uint8_t PMU_ADDR = 0x6A;
+static bool pmuSetStatusLed(bool on) {
+    uint8_t reg = 0x07, val = 0;
+    if (i2c_master_write_read_device(I2C_NUM_0, PMU_ADDR, &reg, 1, &val, 1, pdMS_TO_TICKS(50)) != ESP_OK) return false;
+    uint8_t nv = (val & 0xCF);           // Watchdog aus
+    nv = on ? (nv & ~0x40) : (nv | 0x40);
+    if (nv == val) return true;
+    uint8_t buf[2] = {reg, nv};
+    return i2c_master_write_to_device(I2C_NUM_0, PMU_ADDR, buf, 2, pdMS_TO_TICKS(50)) == ESP_OK;
 }
 
 static void activity() {
@@ -156,7 +173,8 @@ void setup() {
     s_touchMutex = xSemaphoreCreateMutex();
     backlightBegin();
     axs15231_init();
-    touch_init(TP_I2C_SDA, TP_I2C_SCL, TP_IRQ, TP_RST);
+    touch_init(TP_I2C_SDA, TP_I2C_SCL, TP_IRQ, TP_RST);  // installiert auch den I2C-Treiber
+    if (!pmuSetStatusLed(g_config.statusLed)) LOGF("[pmu] Lade-Chip nicht gefunden\n");
     lvglBegin();
 
     actionsBegin();
@@ -180,6 +198,7 @@ void loop() {
         g_configChanged = false;
         displayApplyRotation(g_config.rotation);
         backlightConfigure(g_config.pwmFreq);
+        pmuSetStatusLed(g_config.statusLed);
         uiBuild();
         activity();
         backlightSet(g_config.brightness);
@@ -203,6 +222,12 @@ void loop() {
         } else if (r.msg[0]) {
             uiToast(r.msg, true);
         }
+    }
+
+    static uint32_t lastPmu = 0;
+    if (millis() - lastPmu > 15000) {  // falls der Lade-Chip zurückgesetzt wurde (z. B. Akku/USB neu)
+        lastPmu = millis();
+        pmuSetStatusLed(g_config.statusLed);
     }
 
     static uint32_t lastInfo = 0;
