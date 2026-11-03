@@ -8,7 +8,7 @@
 #define LD_MAX_COLS  8
 #define LD_MAX_ROWS  3
 
-#define LONGDECK_VERSION "1.9.0"
+#define LONGDECK_VERSION "1.9.1"
 
 // Aktionstypen einer Taste
 enum ActionType : uint8_t {
@@ -68,6 +68,7 @@ struct DeckConfig {
     uint16_t rotation = 0;       // 0 = quer, 90 = hochkant, 180 = quer gedreht, 270 = hochkant gedreht
     String background = "auto"; // auto, black, aurora, midnight, graphite, ocean, sunset, forest, image
     uint8_t brightness = 200;    // 10..255
+    uint32_t pwmFreq = 25000;    // Dimm-Frequenz der Beleuchtung in Hz, 0 = ohne Dimmen (nur an/aus)
     uint16_t dimAfter = 60;      // Sekunden bis Dimmen, 0 = nie
     uint8_t dimBrightness = 20;  // Helligkeit im gedimmten Zustand (0 = aus)
     String layout = "de";        // Tastaturlayout des PCs: "de" oder "us"

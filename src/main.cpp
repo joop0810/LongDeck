@@ -31,12 +31,32 @@ extern size_t lcd_PushColors_len;
 // Hintergrundbeleuchtung (PWM)
 // ---------------------------------------------------------------------------
 static const int BL_CHANNEL = 0;
+// Die Hintergrundbeleuchtung wird per PWM gedimmt. Bei hörbaren Frequenzen (früher 5 kHz) fiept
+// die Spule des Display-Treibers. Standard jetzt 25 kHz (unhörbar); 0 = ohne PWM (nur an/aus).
+static uint32_t s_pwmFreq = 0xFFFFFFFF;
+static uint8_t s_lastLevel = 0;
 
-void backlightSet(uint8_t level) { ledcWrite(BL_CHANNEL, level); }
+void backlightSet(uint8_t level) {
+    s_lastLevel = level;
+    if (s_pwmFreq == 0) digitalWrite(TFT_BL, level > 0 ? HIGH : LOW);
+    else ledcWrite(BL_CHANNEL, level);  // 255 = dauerhaft an, ohne Pulse
+}
+
+static void backlightConfigure(uint32_t freq) {
+    if (freq == s_pwmFreq) return;
+    if (s_pwmFreq != 0xFFFFFFFF && s_pwmFreq != 0) ledcDetachPin(TFT_BL);
+    s_pwmFreq = freq;
+    if (freq == 0) {
+        pinMode(TFT_BL, OUTPUT);
+    } else {
+        ledcSetup(BL_CHANNEL, freq, 8);
+        ledcAttachPin(TFT_BL, BL_CHANNEL);
+    }
+    backlightSet(s_lastLevel);
+}
 
 static void backlightBegin() {
-    ledcSetup(BL_CHANNEL, 5000, 8);
-    ledcAttachPin(TFT_BL, BL_CHANNEL);
+    backlightConfigure(g_config.pwmFreq);
     backlightSet(0);
 }
 
@@ -159,6 +179,7 @@ void loop() {
     if (g_configChanged) {
         g_configChanged = false;
         displayApplyRotation(g_config.rotation);
+        backlightConfigure(g_config.pwmFreq);
         uiBuild();
         activity();
         backlightSet(g_config.brightness);

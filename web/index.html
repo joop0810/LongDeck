@@ -250,6 +250,7 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
       <div><label>Kachelform</label><select id="sSquare"><option value="1">Quadratisch – Rand oben/unten statt langgezogen</option><option value="0">Ganze Höhe ausfüllen</option></select></div>
       <div><label>Helligkeit</label><input type="range" id="sBright" min="10" max="255"></div>
       <div><label>Dimmen nach (Sekunden, 0 = nie)</label><input type="number" id="sDim" min="0" max="3600"></div>
+      <div><label>Dimm-Frequenz (gegen Fiepen)</label><select id="sPwm"><option value="25000">25 kHz – leise (Standard)</option><option value="40000">40 kHz – falls es noch fiept</option><option value="18000">18 kHz – falls das Bild flackert</option><option value="0">Ohne Dimmen – nur volle Helligkeit, garantiert leise</option><option value="5000">5 kHz – alt (fiept)</option></select></div>
       <div><label>Helligkeit gedimmt (0 = aus)</label><input type="range" id="sDimB" min="0" max="255"></div>
       <div><label>Gerätename (USB, nach Neustart)</label><input id="sName" maxlength="24"></div>
     </div>
@@ -415,7 +416,7 @@ class SerialLink{
 }
 
 // Demo ohne Gerät
-const DEMO_CFG={deviceName:"LongDeck",cols:5,rows:1,squareTiles:true,theme:"minimal",background:"auto",rotation:0,brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
+const DEMO_CFG={deviceName:"LongDeck",cols:5,rows:1,squareTiles:true,theme:"minimal",background:"auto",rotation:0,pwmFreq:25000,brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
  {name:"Medien",buttons:[["Leiser","volume-2","#3B82F6","media","VOL_DOWN"],["Stumm","volume-off","#EF4444","media","MUTE"],["Lauter","volume","#3B82F6","media","VOL_UP"],["Play","player-play","#22C55E","media","PLAY_PAUSE"],["Weiter","player-track-next","#22C55E","media","NEXT"]]},
  {name:"Arbeit",buttons:[["Kopieren","copy","#A1A1AA","hotkey","CTRL+C"],["Einfügen","clipboard","#A1A1AA","hotkey","CTRL+V"],["Screenshot","screenshot","#A855F7","hotkey","GUI+SHIFT+S"],["Mic aus","microphone-off","#EF4444","hotkey","CTRL+SHIFT+M"],["Sperren","lock","#F59E0B","hotkey","GUI+L"]]},
  {name:"Werkzeuge",buttons:[["Explorer","folder","#F59E0B","hotkey","GUI+E"],["Rechner","calculator","#3B82F6","open","calc"],["Editor","pencil","#A1A1AA","open","notepad"],["Task-Manager","list-check","#A855F7","hotkey","CTRL+SHIFT+ESC"],["Desktop","home","#22C55E","hotkey","GUI+D"]]}]};
@@ -726,12 +727,13 @@ $('edHotkey').addEventListener('keydown',e=>{if(!recording)return;e.preventDefau
   $('edHotkey').value=[...m,k].join('+');stopRec();readEditor()});
 
 // Einstellungen
-function renderSettings(){$('sCols').value=cfg.cols;$('sRows').value=cfg.rows;$('sBright').value=cfg.brightness;$('sDim').value=cfg.dimAfter;$('sDimB').value=cfg.dimBrightness;$('sName').value=cfg.deviceName;$('sLayout').value=cfg.layout;$('sDelay').value=cfg.typeDelay;$('sSquare').value=cfg.squareTiles===false?'0':'1';$('sTheme').value=cfg.theme||'minimal';$('sBg').value=cfg.background||'auto';$('sRot').value=String(cfg.rotation||0);$('bgImageBox').style.display=cfg.background==='image'?'block':'none'}
+function renderSettings(){$('sCols').value=cfg.cols;$('sRows').value=cfg.rows;$('sBright').value=cfg.brightness;$('sDim').value=cfg.dimAfter;$('sDimB').value=cfg.dimBrightness;$('sName').value=cfg.deviceName;$('sLayout').value=cfg.layout;$('sDelay').value=cfg.typeDelay;$('sSquare').value=cfg.squareTiles===false?'0':'1';$('sTheme').value=cfg.theme||'minimal';$('sBg').value=cfg.background||'auto';$('sRot').value=String(cfg.rotation||0);$('sPwm').value=String(cfg.pwmFreq??25000);$('bgImageBox').style.display=cfg.background==='image'?'block':'none'}
 function resizeGrid(cols,rows){
   cols=Math.min(8,Math.max(1,cols|0));rows=Math.min(3,Math.max(1,rows|0));if(cols===cfg.cols&&rows===cfg.rows)return;
   cfg.pages.forEach(p=>{const old=p.buttons,nb=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)nb.push(r<cfg.rows&&c<cfg.cols?old[r*cfg.cols+c]:blank());p.buttons=nb});
   cfg.cols=cols;cfg.rows=rows;sel=-1;setDirty();render();
 }
+$('sPwm').onchange=()=>{cfg.pwmFreq=+$('sPwm').value;setDirty()};
 $('sRot').onchange=()=>{cfg.rotation=+$('sRot').value;sel=-1;setDirty();render()};
 $('sTheme').onchange=()=>{cfg.theme=$('sTheme').value;setDirty();renderDeck()};
 $('sSquare').onchange=()=>{cfg.squareTiles=$('sSquare').value==='1';setDirty();renderDeck()};
