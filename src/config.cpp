@@ -94,6 +94,7 @@ void configNormalize() {
     if (c.theme != "minimal" && c.theme != "soft" && c.theme != "bold" && c.theme != "mono" && c.theme != "glass" && c.theme != "flat" && !c.theme.startsWith("frost") && c.theme != "dash") c.theme = "minimal";
     if (c.background.length() == 0) c.background = "auto";
     c.rotation = (c.rotation / 90 % 4) * 90;
+    if (c.swipe != "smooth") c.swipe = "fast";
     if (c.pwmFreq != 0) c.pwmFreq = constrain(c.pwmFreq, 1000, 60000);
     if (c.deviceName.length() == 0) c.deviceName = "LongDeck";
     if (c.pages.empty()) {
@@ -128,6 +129,7 @@ void configToJson(JsonDocument &doc) {
     doc["theme"] = c.theme;
     doc["background"] = c.background;
     doc["rotation"] = c.rotation;
+    doc["swipe"] = c.swipe;
     doc["pwmFreq"] = c.pwmFreq;
     JsonArray pages = doc["pages"].to<JsonArray>();
     for (const DeckPage &p : c.pages) {
@@ -181,6 +183,7 @@ bool configFromJson(JsonDocument &doc, String &err) {
     c.theme = doc["theme"] | "minimal";
     c.background = doc["background"] | "auto";
     c.rotation = doc["rotation"] | 0;
+    c.swipe = doc["swipe"] | "fast";
     c.pwmFreq = doc["pwmFreq"] | 25000;
     for (JsonObject jp : doc["pages"].as<JsonArray>()) {
         DeckPage p;

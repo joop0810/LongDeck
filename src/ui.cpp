@@ -54,6 +54,24 @@ static void updateDots() {
 
 static void onTileChanged(lv_event_t *) { updateDots(); }
 
+static int currentTile() {
+    lv_obj_t *act = s_tv ? lv_tileview_get_tile_act(s_tv) : nullptr;
+    return act ? lv_obj_get_index(act) : 0;
+}
+
+// Schneller Seitenwechsel: Wischgeste erkennen und ohne Animation springen.
+// Das Display kann wegen der Software-Drehung nur ~15-20 Bilder/s – ein Mitziehen mit dem Finger ruckelt.
+static void onGesture(lv_event_t *) {
+    lv_dir_t d = lv_indev_get_gesture_dir(lv_indev_get_act());
+    int cur = currentTile(), next = cur;
+    if (d == LV_DIR_LEFT || d == LV_DIR_TOP) next = cur + 1;
+    else if (d == LV_DIR_RIGHT || d == LV_DIR_BOTTOM) next = cur - 1;
+    if (next < 0 || next > s_pageCount || next == cur) return;
+    lv_indev_wait_release(lv_indev_get_act());  // keine Taste auslösen
+    lv_obj_set_tile_id(s_tv, next, 0, LV_ANIM_OFF);
+    updateDots();
+}
+
 static void onButtonClicked(lv_event_t *e) {
     uint32_t data = (uint32_t)(uintptr_t)lv_event_get_user_data(e);
     actionsTrigger((int)(data >> 8), (int)(data & 0xFF));
@@ -534,6 +552,7 @@ static lv_obj_t *mkSlider(lv_obj_t *parent, int x, int y, int w) {
     lv_obj_set_style_bg_color(sl, hex(0xFFFFFF), LV_PART_KNOB);
     lv_obj_add_event_cb(sl, onSlider, LV_EVENT_VALUE_CHANGED, nullptr);
     lv_obj_add_event_cb(sl, onSlider, LV_EVENT_RELEASED, nullptr);
+    lv_obj_clear_flag(sl, LV_OBJ_FLAG_GESTURE_BUBBLE);  // Schieben am Regler wechselt nicht die Seite
     return sl;
 }
 
@@ -648,6 +667,11 @@ void uiBuild() {
     lv_obj_set_style_bg_opa(s_tv, glassTheme ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
     lv_obj_set_scrollbar_mode(s_tv, LV_SCROLLBAR_MODE_OFF);
     lv_obj_add_event_cb(s_tv, onTileChanged, LV_EVENT_VALUE_CHANGED, nullptr);
+    bool fastSwipe = c.swipe != "smooth";
+    if (fastSwipe) {
+        lv_obj_add_event_cb(s_tv, onGesture, LV_EVENT_GESTURE, nullptr);
+        lv_obj_clear_flag(s_tv, LV_OBJ_FLAG_GESTURE_BUBBLE);  // Geste hier abfangen statt am Bildschirm
+    }
 
     // Hochkant: Raster gedreht (aus 1 Zeile x 5 werden 5 Zeilen x 1)
     int cols = portrait ? c.rows : c.cols, rows = portrait ? c.cols : c.rows;
@@ -661,7 +685,7 @@ void uiBuild() {
     int y0 = PAD + (availH - totalH) / 2;
 
     for (int p = 0; p < s_pageCount; p++) {
-        lv_obj_t *tile = lv_tileview_add_tile(s_tv, p, 0, LV_DIR_LEFT | LV_DIR_RIGHT);
+        lv_obj_t *tile = lv_tileview_add_tile(s_tv, p, 0, fastSwipe ? LV_DIR_NONE : (LV_DIR_LEFT | LV_DIR_RIGHT));
         const DeckPage &page = c.pages[p];
         for (int r = 0; r < rows; r++) {
             for (int col = 0; col < cols; col++) {
@@ -671,7 +695,7 @@ void uiBuild() {
             }
         }
     }
-    lv_obj_t *info = lv_tileview_add_tile(s_tv, s_pageCount, 0, LV_DIR_LEFT);
+    lv_obj_t *info = lv_tileview_add_tile(s_tv, s_pageCount, 0, fastSwipe ? LV_DIR_NONE : LV_DIR_LEFT);
     buildInfoTile(info);
     xSemaphoreGiveRecursive(g_configMutex);
 
@@ -699,7 +723,7 @@ void uiBuild() {
 
 void uiGotoPage(int page) {
     if (!s_tv || page < 0 || page > s_pageCount) return;
-    lv_obj_set_tile_id(s_tv, page, 0, LV_ANIM_ON);
+    lv_obj_set_tile_id(s_tv, page, 0, g_config.swipe == "smooth" ? LV_ANIM_ON : LV_ANIM_OFF);
     updateDots();
 }
 

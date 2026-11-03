@@ -246,6 +246,7 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
       <div><label>Spalten (1–8)</label><input type="number" id="sCols" min="1" max="8"></div>
       <div><label>Zeilen (1–3)</label><input type="number" id="sRows" min="1" max="3"></div>
       <div><label>Skin</label><select id="sTheme"><option value="dash">Dashboard – Karten wie Home Assistant</option><option value="minimal">Minimal – schwarz, Icon in Farbe</option><option value="soft">Soft Color – zart getönt, gefüllte Icons</option><option value="bold">Bold – volle Farbe, nur Icon</option><option value="mono">Mono – weiß/grau, ganz clean</option><option value="frost">Milchglas – dezent, Icon in Farbe</option><option value="frost-tint">Milchglas getönt – leicht gefärbt, Icon weiß</option><option value="frost-light">Helles Glas – schwarze Icons</option><option value="frost-dark">Dunkles Glas – weiße Icons</option><option value="glass">Glas mit Glanz – leuchtend</option><option value="flat">Klassisch – farbige Kacheln</option></select></div>
+      <div><label>Seitenwechsel</label><select id="sSwipe"><option value="fast">Schnell – Wischen springt sofort (flüssig)</option><option value="smooth">Animiert – Seite folgt dem Finger (ruckelt etwas)</option></select></div>
       <div><label>Ausrichtung</label><select id="sRot"><option value="0">Quer</option><option value="180">Quer – um 180° gedreht</option><option value="90">Hochkant</option><option value="270">Hochkant – um 180° gedreht</option></select></div>
       <div><label>Kachelform</label><select id="sSquare"><option value="1">Quadratisch – Rand oben/unten statt langgezogen</option><option value="0">Ganze Höhe ausfüllen</option></select></div>
       <div><label>Helligkeit</label><input type="range" id="sBright" min="10" max="255"></div>
@@ -416,7 +417,7 @@ class SerialLink{
 }
 
 // Demo ohne Gerät
-const DEMO_CFG={deviceName:"LongDeck",cols:5,rows:1,squareTiles:true,theme:"minimal",background:"auto",rotation:0,pwmFreq:25000,brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
+const DEMO_CFG={deviceName:"LongDeck",cols:5,rows:1,squareTiles:true,theme:"minimal",background:"auto",rotation:0,swipe:"fast",pwmFreq:25000,brightness:200,dimAfter:60,dimBrightness:20,layout:"de",typeDelay:8,pages:[
  {name:"Medien",buttons:[["Leiser","volume-2","#3B82F6","media","VOL_DOWN"],["Stumm","volume-off","#EF4444","media","MUTE"],["Lauter","volume","#3B82F6","media","VOL_UP"],["Play","player-play","#22C55E","media","PLAY_PAUSE"],["Weiter","player-track-next","#22C55E","media","NEXT"]]},
  {name:"Arbeit",buttons:[["Kopieren","copy","#A1A1AA","hotkey","CTRL+C"],["Einfügen","clipboard","#A1A1AA","hotkey","CTRL+V"],["Screenshot","screenshot","#A855F7","hotkey","GUI+SHIFT+S"],["Mic aus","microphone-off","#EF4444","hotkey","CTRL+SHIFT+M"],["Sperren","lock","#F59E0B","hotkey","GUI+L"]]},
  {name:"Werkzeuge",buttons:[["Explorer","folder","#F59E0B","hotkey","GUI+E"],["Rechner","calculator","#3B82F6","open","calc"],["Editor","pencil","#A1A1AA","open","notepad"],["Task-Manager","list-check","#A855F7","hotkey","CTRL+SHIFT+ESC"],["Desktop","home","#22C55E","hotkey","GUI+D"]]}]};
@@ -727,13 +728,14 @@ $('edHotkey').addEventListener('keydown',e=>{if(!recording)return;e.preventDefau
   $('edHotkey').value=[...m,k].join('+');stopRec();readEditor()});
 
 // Einstellungen
-function renderSettings(){$('sCols').value=cfg.cols;$('sRows').value=cfg.rows;$('sBright').value=cfg.brightness;$('sDim').value=cfg.dimAfter;$('sDimB').value=cfg.dimBrightness;$('sName').value=cfg.deviceName;$('sLayout').value=cfg.layout;$('sDelay').value=cfg.typeDelay;$('sSquare').value=cfg.squareTiles===false?'0':'1';$('sTheme').value=cfg.theme||'minimal';$('sBg').value=cfg.background||'auto';$('sRot').value=String(cfg.rotation||0);$('sPwm').value=String(cfg.pwmFreq??25000);$('bgImageBox').style.display=cfg.background==='image'?'block':'none'}
+function renderSettings(){$('sCols').value=cfg.cols;$('sRows').value=cfg.rows;$('sBright').value=cfg.brightness;$('sDim').value=cfg.dimAfter;$('sDimB').value=cfg.dimBrightness;$('sName').value=cfg.deviceName;$('sLayout').value=cfg.layout;$('sDelay').value=cfg.typeDelay;$('sSquare').value=cfg.squareTiles===false?'0':'1';$('sTheme').value=cfg.theme||'minimal';$('sBg').value=cfg.background||'auto';$('sRot').value=String(cfg.rotation||0);$('sSwipe').value=cfg.swipe||'fast';$('sPwm').value=String(cfg.pwmFreq??25000);$('bgImageBox').style.display=cfg.background==='image'?'block':'none'}
 function resizeGrid(cols,rows){
   cols=Math.min(8,Math.max(1,cols|0));rows=Math.min(3,Math.max(1,rows|0));if(cols===cfg.cols&&rows===cfg.rows)return;
   cfg.pages.forEach(p=>{const old=p.buttons,nb=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)nb.push(r<cfg.rows&&c<cfg.cols?old[r*cfg.cols+c]:blank());p.buttons=nb});
   cfg.cols=cols;cfg.rows=rows;sel=-1;setDirty();render();
 }
 $('sPwm').onchange=()=>{cfg.pwmFreq=+$('sPwm').value;setDirty()};
+$('sSwipe').onchange=()=>{cfg.swipe=$('sSwipe').value;setDirty()};
 $('sRot').onchange=()=>{cfg.rotation=+$('sRot').value;sel=-1;setDirty();render()};
 $('sTheme').onchange=()=>{cfg.theme=$('sTheme').value;setDirty();renderDeck()};
 $('sSquare').onchange=()=>{cfg.squareTiles=$('sSquare').value==='1';setDirty();renderDeck()};
