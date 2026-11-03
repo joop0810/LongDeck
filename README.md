@@ -33,7 +33,11 @@ Nur USB – kein WLAN, keine Hintergrund-App. Das Board meldet sich am PC als ga
 3. Wird kein Gerät gefunden: **BOOT**-Taste gedrückt halten, USB einstecken, loslassen, erneut versuchen
 4. Danach einmal ab- und wieder anstecken
 
-> „Gerät löschen“ nur anhaken, wenn die Tastenbelegung zurückgesetzt werden soll.
+> Im Installer **„Gerät löschen“ nicht anhaken**, sonst ist die Belegung weg.
+
+### Updates (ab 1.9.0)
+
+Web-App → **Verbinden** → Reiter **Firmware** → **Jetzt aktualisieren**. Die neue Firmware wird über die bestehende USB-Verbindung übertragen; Belegung, Skin, Hintergrundbild und Einstellungen bleiben erhalten. Kein Flash-Modus nötig. Zusätzlich legt die Web-App bei jedem Speichern eine Sicherung im Browser ab (Einstellungen → Sicherung → „Browser-Sicherung wiederherstellen“).
 
 **Selbst bauen (PlatformIO):** `pio run -t upload` – nach dem Build liegt zusätzlich `firmware/longdeck.bin` (komplettes Image ab `0x0`) im Projektordner.
 

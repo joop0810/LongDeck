@@ -45,6 +45,10 @@ jobs:
           BIN="longdeck-${GITHUB_SHA::7}.bin"
           cp firmware/longdeck.bin "site/$BIN"
           sed -i "s/\"longdeck.bin\"/\"$BIN\"/" site/manifest.json
+          # Nur die App (ohne Bootloader/Partitionen) für das Update über USB aus der Web-App
+          APP="longdeck-app-${GITHUB_SHA::7}.bin"
+          cp .pio/build/longdeck/firmware.bin "site/$APP"
+          sed -i "s/\"longdeck-app.bin\"/\"$APP\"/" site/manifest.json
           cp firmware/longdeck.bin dist/longdeck-full.bin
 
       - uses: actions/upload-artifact@v4

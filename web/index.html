@@ -295,6 +295,7 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
     <div class="row">
       <button class="btn" id="exportBtn">⬇ Exportieren</button>
       <label class="btn" style="margin:0;color:var(--text)">⬆ Importieren<input type="file" id="importFile" accept=".json" hidden></label>
+      <button class="btn" id="restoreBtn">↺ Browser-Sicherung wiederherstellen</button>
       <button class="btn danger" id="resetBtn">Auf Standard zurücksetzen</button>
       <button class="btn" id="rebootBtn">Gerät neu starten</button>
     </div>
@@ -302,9 +303,17 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
 </section>
 
 <section id="firmware">
+  <div class="card" id="otaCard">
+    <h2>Firmware aktualisieren – ohne Datenverlust</h2>
+    <p>Belegung, Skin, Hintergrundbild und alle Einstellungen bleiben erhalten. Kein Flash-Modus, keine Tasten am Board.</p>
+    <div class="row"><button class="btn primary big" id="otaBtn" disabled>⬆ Jetzt aktualisieren</button><span class="hint" id="otaInfo">Erst oben auf „Verbinden“ klicken.</span></div>
+    <div style="height:8px;background:var(--panel2);border-radius:99px;margin-top:14px;overflow:hidden;display:none" id="otaBarWrap"><div id="otaBar" style="height:100%;width:0;background:var(--accent);transition:width .2s"></div></div>
+    <div class="hint" id="fwVer"></div>
+    <div class="hint" id="fwAvail"></div>
+  </div>
   <div class="card">
-    <h2>Firmware installieren / aktualisieren</h2>
-    <p>Die Tastenbelegung bleibt erhalten, solange „Gerät löschen“ nicht angehakt ist.</p>
+    <h2>Erstinstallation / Notfall</h2>
+    <p>Nur nötig beim allerersten Mal oder wenn das Gerät nicht mehr startet. Im Installer <b>„Gerät löschen“ nicht anhaken</b>, dann bleibt die Belegung erhalten.</p>
     <p><b>Schritt 1 – Flash-Modus</b> (nur nötig, wenn schon eine LongDeck-Firmware läuft): Klicken, „LongDeck“ auswählen. Das Board startet neu, das Display wird dunkel.</p>
     <button class="btn" id="flashModeBtn" style="margin-bottom:18px">⚡ Flash-Modus starten</button>
     <p><b>Schritt 2:</b> <b>Installieren</b> klicken und <b>„USB JTAG/serial debug unit“</b> auswählen.</p>
@@ -323,8 +332,6 @@ ol{margin:0;padding-left:20px}li{margin:5px 0}
       </ol>
       <div class="hint">Nach der Installation einmal <b>RST</b> drücken bzw. ab- und wieder anstecken.</div>
     </div>
-    <div class="hint" id="fwVer"></div>
-    <div class="hint" id="fwAvail"></div>
   </div>
 </section>
 </main>
@@ -432,6 +439,7 @@ function setConnected(on,label){
   document.querySelectorAll('nav button[data-tab=keys],nav button[data-tab=settings]').forEach(b=>b.disabled=!on);
   $('savebar').classList.toggle('on',on);
   if(!on){cfg=null;sel=-1;setDirty(false);if(['keys','settings'].includes(document.querySelector('section.on').id))showTab('start')}
+  checkUpdate();
 }
 
 let connecting=false;
@@ -442,7 +450,7 @@ async function attach(l){
   try{
     await l.open();
     info=await l.send('hello',{},4000);
-    const res=await l.send('get');cfg=res.config;
+    const res=await l.send('get');cfg=res.config;if(!l.demo)offerRestore();
     fillLists();page=0;sel=-1;normalize();render();renderSettings();setDirty(false);
     setConnected(true,l.demo?'Demo-Modus (kein Gerät)':'Verbunden · Firmware '+info.version);
     $('fwVer').textContent=l.demo?'':'Installierte Version: '+info.version;
@@ -469,25 +477,54 @@ $('connBtn').onclick=()=>link?disconnect():connect();
 $('heroConn').onclick=connect;
 $('demoBtn').onclick=()=>attach(new DemoLink());
 if('serial' in navigator){
-  navigator.serial.addEventListener('disconnect',e=>{if(link&&link.port===e.target){link.closed=true;link=null;setConnected(false,'Gerät abgesteckt');toast('Gerät wurde getrennt',false)}});
+  navigator.serial.addEventListener('disconnect',e=>{if(link&&link.port===e.target){link.closed=true;link=null;if(Date.now()-otaDoneAt<20000){setConnected(false,'Gerät startet neu …')}else{setConnected(false,'Gerät abgesteckt');toast('Gerät wurde getrennt',false)}}});
   // Bereits freigegebenes Gerät automatisch verbinden
+  // Nach Neustart (z. B. Update) automatisch wieder verbinden
+  navigator.serial.addEventListener('connect',e=>{const p=e.target;if(!link&&p.getInfo().usbVendorId===0x303a)setTimeout(()=>{if(!link)attach(new SerialLink(p))},1500)});
   navigator.serial.getPorts().then(ps=>{const p=ps.find(x=>x.getInfo().usbVendorId===0x303a);if(p&&!link)attach(new SerialLink(p))});
 }else{$('noSerial').style.display='block'}
 setInterval(()=>{if(link&&!link.demo)link.send('ping').catch(()=>{})},3000);
 // Für den Firmware-Installer muss der Port frei sein
 // (Verbindung erst vollständig schließen, dann den Installer starten)
 // Manifest immer frisch laden (GitHub Pages cached sonst bis zu 10 Minuten)
-let availVer=null;
+let availVer=null,availApp=null;
 (function(){
   const url='manifest.json?t='+Date.now();
   $('installBtn').setAttribute('manifest',url);
-  fetch(url,{cache:'no-store'}).then(r=>r.json()).then(m=>{availVer=m.version;$('fwAvail').textContent='Verfügbar zum Installieren: '+m.version;checkUpdate()}).catch(()=>{});
+  fetch(url,{cache:'no-store'}).then(r=>r.json()).then(m=>{availVer=m.version;availApp=m.app||null;$('fwAvail').textContent='Verfügbar: '+m.version;checkUpdate()}).catch(()=>{});
 })();
 function checkUpdate(){
-  if(!availVer||!info||!info.version||link?.demo)return;
+  const b=$('otaBtn');
+  if(!link||link.demo||!info){b.disabled=true;$('otaInfo').textContent='Erst oben auf „Verbinden“ klicken.';$('fwVer').textContent='';return}
+  if(!info.ota){b.disabled=true;$('otaInfo').innerHTML='Die installierte Version '+info.version+' kann das noch nicht – <b>einmalig</b> unten den Installer nutzen (ohne „Gerät löschen“).';}
+  else if(!availApp){b.disabled=true;$('otaInfo').textContent='Update-Datei wird geladen …'}
+  else{b.disabled=false;$('otaInfo').textContent=availVer&&info.version!==availVer?'Version '+availVer+' bereit.':'Bereits aktuell – kann trotzdem neu aufgespielt werden.'}
+  if(!availVer||!info.version)return;
   if(info.version!==availVer){$('fwVer').innerHTML='Installiert: <b style="color:var(--warn)">'+info.version+'</b> – Update verfügbar!';toast('Firmware-Update '+availVer+' verfügbar (Reiter „Firmware“)')}
   else $('fwVer').textContent='Installiert: '+info.version+' (aktuell)';
 }
+// Firmware-Update über die bestehende USB-Verbindung (nur App-Partition, Speicher bleibt unberührt)
+let otaRunning=false,otaDoneAt=0;
+$('otaBtn').onclick=async()=>{
+  if(!link||link.demo||!availApp)return;
+  if(dirty){try{await save(true)}catch(e){return toast('Erst speichern fehlgeschlagen: '+e.message,false)}}
+  const btn=$('otaBtn');btn.disabled=true;otaRunning=true;$('otaBarWrap').style.display='block';$('otaBar').style.width='0';
+  try{
+    $('otaInfo').textContent='Lade Firmware …';
+    const r=await fetch(availApp+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('Download fehlgeschlagen ('+r.status+')');
+    const fw=new Uint8Array(await r.arrayBuffer());if(fw[0]!==0xE9)throw new Error('Keine gültige Firmware-Datei');
+    await link.send('otabegin',{size:fw.length},10000);
+    const CH=8192;
+    for(let o=0;o<fw.length;o+=CH){let bin='';const part=fw.subarray(o,o+CH);for(let k=0;k<part.length;k++)bin+=String.fromCharCode(part[k]);
+      await link.send('otachunk',{data:btoa(bin)},15000);const pct=Math.min(100,Math.round((o+part.length)/fw.length*100));
+      $('otaBar').style.width=pct+'%';$('otaInfo').textContent='Übertrage … '+pct+' %'}
+    $('otaInfo').textContent='Prüfe und starte neu …';
+    await link.send('otaend',{},20000);otaDoneAt=Date.now();
+    $('otaInfo').textContent='Fertig – Gerät startet neu und verbindet sich gleich wieder.';
+    toast('Update installiert – Belegung bleibt erhalten');
+  }catch(e){toast('Update fehlgeschlagen: '+e.message,false);$('otaInfo').textContent='Fehlgeschlagen: '+e.message+' – die alte Firmware läuft weiter.';btn.disabled=false}
+  otaRunning=false;
+};
 // Flash-Modus über den 1200-Baud-Trick (funktioniert mit jeder LongDeck-Version, ohne Tasten am Board)
 $('flashModeBtn').onclick=async()=>{
   if(!('serial' in navigator))return toast('Bitte Chrome oder Edge verwenden',false);
@@ -752,13 +789,26 @@ $('bgUpload').onclick=async()=>{
     $('bgProg').textContent='Fertig';toast('Hintergrund aufs Gerät geladen');
   }catch(e){toast('Fehler: '+e.message,false);$('bgProg').textContent=''}
   btn.disabled=false};
-async function save(silent){if(!link)throw new Error('Nicht verbunden');normalize();await link.send('set',{config:cfg});setDirty(false);if(!silent)toast('Gespeichert – Gerät aktualisiert')}
+// ---------- Sicherung im Browser (automatisch) ----------
+const DEFAULT_PAGE_NAMES='Medien|Arbeit|Werkzeuge';
+function backupLocal(){try{localStorage.setItem('longdeck-backup',JSON.stringify({t:Date.now(),cfg}))}catch(e){}}
+function readBackup(){try{return JSON.parse(localStorage.getItem('longdeck-backup')||'null')}catch(e){return null}}
+function offerRestore(){
+  const bk=readBackup();if(!bk||!bk.cfg)return backupLocal();
+  const isDefault=cfg.pages.map(p=>p.name).join('|')===DEFAULT_PAGE_NAMES;
+  const same=JSON.stringify(bk.cfg.pages)===JSON.stringify(cfg.pages);
+  if(isDefault&&!same&&confirm('Das Gerät hat die Standardbelegung – wohl gelöscht.\nDeine letzte Belegung vom '+new Date(bk.t).toLocaleString('de-DE')+' wiederherstellen?')){
+    cfg=bk.cfg;normalize();save().then(()=>{render();renderSettings()}).catch(e=>toast(e.message,false))}
+  else if(!isDefault)backupLocal();
+}
+async function save(silent){if(!link)throw new Error('Nicht verbunden');normalize();await link.send('set',{config:cfg});setDirty(false);if(!link.demo)backupLocal();if(!silent)toast('Gespeichert – Gerät aktualisiert')}
 $('saveBtn').onclick=()=>save().catch(e=>toast(e.message,false));
 window.addEventListener('keydown',e=>{if(link&&(e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save().catch(er=>toast(er.message,false))}});
 window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue=''}});
 
 $('exportBtn').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(cfg,null,2)],{type:'application/json'}));a.download='longdeck-config.json';a.click()};
 $('importFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!Array.isArray(j.pages))throw new Error('Keine LongDeck-Konfiguration');cfg=j;page=0;sel=-1;normalize();render();renderSettings();await save()}catch(er){toast(er.message,false)}e.target.value=''};
+$('restoreBtn').onclick=async()=>{const bk=readBackup();if(!bk)return toast('Keine Sicherung in diesem Browser',false);if(!confirm('Belegung vom '+new Date(bk.t).toLocaleString('de-DE')+' aufs Gerät laden?'))return;cfg=bk.cfg;normalize();try{await save();render();renderSettings()}catch(e){toast(e.message,false)}};
 $('resetBtn').onclick=async()=>{if(!confirm('Alle Tasten auf Standard zurücksetzen?'))return;try{await link.send('reset');cfg=(await link.send('get')).config;page=0;sel=-1;normalize();render();renderSettings();setDirty(false);toast('Zurückgesetzt')}catch(e){toast(e.message,false)}};
 $('rebootBtn').onclick=async()=>{try{await link.send('reboot');toast('Gerät startet neu …')}catch(e){toast(e.message,false)}};
 </script>

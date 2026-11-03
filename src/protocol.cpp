@@ -6,6 +6,7 @@
 #include "esp32-hal-tinyusb.h"
 #include <LittleFS.h>
 #include "mbedtls/base64.h"
+#include <Update.h>
 
 static String s_line;
 static bool s_overflow = false;
@@ -15,6 +16,8 @@ static bool s_toBootloader = false;
 static File s_bgFile;
 static size_t s_bgWritten = 0;
 static const size_t BG_SIZE = 640 * 180 * 2;
+static size_t s_otaSize = 0, s_otaWritten = 0;
+static bool s_otaActive = false;
 
 static const size_t MAX_LINE = 200 * 1024;  // Konfiguration kann einige 10 KB groß werden
 
@@ -71,6 +74,7 @@ static void handle(const String &line) {
             res["maxCols"] = LD_MAX_COLS;
             res["maxRows"] = LD_MAX_ROWS;
             res["hasBgImage"] = LittleFS.exists("/bg.bin");
+            res["ota"] = true;  // Firmware-Update über diese Verbindung möglich
         }
     } else if (cmd == "get") {
         JsonDocument cfg;
@@ -97,6 +101,40 @@ static void handle(const String &line) {
         configSave();
         xSemaphoreGiveRecursive(g_configMutex);
         g_configChanged = true;
+    } else if (cmd == "otabegin") {
+        // Firmware-Update über USB: nur die App-Partition wird beschrieben, Belegung bleibt erhalten
+        s_otaSize = req["size"] | 0;
+        if (s_otaSize < 100000) return replyError(id, "Groesse fehlt");
+        if (s_otaActive) Update.abort();
+        if (!Update.begin(s_otaSize, U_FLASH)) return replyError(id, String("Update.begin: ") + Update.errorString());
+        s_otaActive = true;
+        s_otaWritten = 0;
+        LOGF("[ota] start, %u Bytes\n", (unsigned)s_otaSize);
+    } else if (cmd == "otachunk") {
+        if (!s_otaActive) return replyError(id, "otabegin fehlt");
+        const char *data = req["data"] | "";
+        size_t outLen = 0;
+        static uint8_t obuf[12288];
+        if (mbedtls_base64_decode(obuf, sizeof(obuf), &outLen, (const unsigned char *)data, strlen(data)) != 0)
+            return replyError(id, "Base64 ungueltig");
+        if (Update.write(obuf, outLen) != outLen) {
+            String e = Update.errorString();
+            Update.abort();
+            s_otaActive = false;
+            return replyError(id, "Schreibfehler: " + e);
+        }
+        s_otaWritten += outLen;
+        res["written"] = (uint32_t)s_otaWritten;
+    } else if (cmd == "otaend") {
+        if (!s_otaActive) return replyError(id, "otabegin fehlt");
+        s_otaActive = false;
+        if (s_otaWritten != s_otaSize || !Update.end(true)) {
+            String e = Update.errorString();
+            Update.abort();
+            return replyError(id, "Update fehlgeschlagen: " + e);
+        }
+        LOGF("[ota] fertig, Neustart\n");
+        s_restartAt = millis() + 600;
     } else if (cmd == "bgbegin") {
         // Hintergrundbild hochladen: 640x180 RGB565 (LE), in Stücken als Base64
         if (s_bgFile) s_bgFile.close();

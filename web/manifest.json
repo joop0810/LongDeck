@@ -1,7 +1,8 @@
 {
   "name": "LongDeck",
-  "version": "1.8.0",
-  "new_install_prompt_erase": false,
+  "version": "1.9.0",
+  "new_install_prompt_erase": true,
+  "app": "longdeck-app.bin",
   "builds": [
     {
       "chipFamily": "ESP32-S3",

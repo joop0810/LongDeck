@@ -8,7 +8,7 @@
 #define LD_MAX_COLS  8
 #define LD_MAX_ROWS  3
 
-#define LONGDECK_VERSION "1.8.0"
+#define LONGDECK_VERSION "1.9.0"
 
 // Aktionstypen einer Taste
 enum ActionType : uint8_t {
